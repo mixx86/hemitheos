@@ -1,0 +1,22 @@
+[package]
+name = "hemitheos"
+version = "0.1.0"
+edition = "2024"
+
+[package.metadata]
+supported-targets = [
+    "aarch64-unknown-none",
+    "riscv64gc-unknown-none-elf",
+]
+
+[profile.release]
+opt-level = 2
+lto = true
+codegen-units = 1
+panic = "abort"
+
+[build-dependencies]
+cc = "1.0"
+
+[dependencies]
+fdt = { version = "0.1", default-features = false }
