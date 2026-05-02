@@ -1,0 +1,14 @@
+# Rust build artifacts
+/target
+
+# Logs
+*.log
+
+# DTBs
+*.dtb
+
+# Temporary/system files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
