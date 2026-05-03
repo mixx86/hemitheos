@@ -26,11 +26,11 @@ Get the hypervisor to boot on the target hardware, establish a working environme
 - [x] PL011 driver: hardware init, baud rate computed from clock frequency read from DTB
 - [x] DTB clock extraction: direct `clock-frequency` property and phandle resolution (`fixed-clock` provider); covers QEMU virt and most real platforms
 - [x] PL011 `puts`: spin on `UARTFR.TXFF`, write to `UARTDR`, drain on `UARTFR.BUSY` before return
-- [x] `uart::init` wired in `main` from `PlatformInfo`
-- [x] Migrate `uart.rs` / `pl011.rs` driver globals from `static mut` to `sync::Once`
+- [x] `console::init` wired in `main` from `PlatformInfo`
+- [x] Migrate `console.rs` / `pl011.rs` driver globals from `static mut` to `sync::Once`
 
 ### Pending
-- [ ] `log.rs`: `core::fmt::Write` over `uart::puts`; expose `kprint!` / `kprintln!` macros kernel-wide
+- [ ] `log.rs`: `core::fmt::Write` over `console::puts`; expose `kprint!` / `kprintln!` macros kernel-wide
 - [ ] Exception vector table: save/restore register frame, structured dispatch to Rust handlers
 
 ---

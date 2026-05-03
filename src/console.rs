@@ -1,7 +1,7 @@
 use crate::sync;
 
 #[derive(Copy, Clone, PartialEq, Eq)]
-pub enum UartType {
+pub enum ConsoleType {
     Pl011,
     Ns16550,
     Msm,
@@ -9,53 +9,53 @@ pub enum UartType {
     Unknown,
 }
 
-pub trait UartDriver: Sync {
+pub trait ConsoleDriver: Sync {
     fn puts(&self, s: &str);
 }
 
-static UART: sync::Once<&'static dyn UartDriver> = sync::Once::new();
+static CONSOLE: sync::Once<&'static dyn ConsoleDriver> = sync::Once::new();
 
-pub struct UartInfo {
-    pub kind: UartType,
+pub struct ConsoleInfo {
+    pub kind: ConsoleType,
     pub base: u64,
     pub clock_hz: u32,
 }
 
-pub fn init(info: Option<UartInfo>) {
+pub fn init(info: Option<ConsoleInfo>) {
     let info = match info {
         Some(info) => info,
         None => return,
     };
-    let driver: &'static dyn UartDriver = match info.kind {
-        UartType::Pl011 => crate::drivers::uart::pl011::init(info.base, info.clock_hz),
-        UartType::Ns16550 => return, // TODO
-        UartType::Msm => return,     // TODO
-        UartType::DwApb => return,   // TODO
-        UartType::Unknown => return,
+    let driver: &'static dyn ConsoleDriver = match info.kind {
+        ConsoleType::Pl011 => crate::drivers::uart::pl011::init(info.base, info.clock_hz),
+        ConsoleType::Ns16550 => return, // TODO
+        ConsoleType::Msm => return,     // TODO
+        ConsoleType::DwApb => return,   // TODO
+        ConsoleType::Unknown => return,
     };
 
-    UART.set(driver);
+    CONSOLE.set(driver);
 }
 
-pub fn uart() -> &'static dyn UartDriver {
-    UART.get()
+pub fn console() -> &'static dyn ConsoleDriver {
+    CONSOLE.get()
         .copied()
         .expect("platform not initialized — call dtb::init first")
 }
 
 pub fn puts(s: &str) {
-    if let Some(driver) = UART.get().copied() {
+    if let Some(driver) = CONSOLE.get().copied() {
         driver.puts(s);
     }
 }
 
-fn uart_type_from_compatible(compat: &str) -> UartType {
+fn console_type_from_compatible(compat: &str) -> ConsoleType {
     match compat {
-        "arm,pl011" | "broadcom,pl011" => UartType::Pl011,
-        "ns16550a" | "ns16550" => UartType::Ns16550,
-        "snps,dw-apb-uart" => UartType::DwApb,
-        "qcom,msm-uartdm" => UartType::Msm,
-        _ => UartType::Unknown,
+        "arm,pl011" | "broadcom,pl011" => ConsoleType::Pl011,
+        "ns16550a" | "ns16550" => ConsoleType::Ns16550,
+        "snps,dw-apb-uart" => ConsoleType::DwApb,
+        "qcom,msm-uartdm" => ConsoleType::Msm,
+        _ => ConsoleType::Unknown,
     }
 }
 
@@ -108,19 +108,19 @@ fn extract_uart_clock(fdt: &fdt::Fdt, node: &fdt::node::FdtNode) -> Option<u32> 
     None
 }
 
-pub fn find_uart(fdt: &fdt::Fdt) -> Option<UartInfo> {
-    let node_to_uart_info = |node: fdt::node::FdtNode| -> Option<UartInfo> {
+pub fn find_console(fdt: &fdt::Fdt) -> Option<ConsoleInfo> {
+    let node_to_uart_info = |node: fdt::node::FdtNode| -> Option<ConsoleInfo> {
         let reg = node.reg()?.next()?;
 
-        let mut uart_type = UartType::Unknown;
+        let mut uart_type = ConsoleType::Unknown;
 
         if let Some(compat) = node.compatible() {
             if let Some(compat_str) = compat.all().next() {
-                uart_type = uart_type_from_compatible(compat_str);
+                uart_type = console_type_from_compatible(compat_str);
             }
         }
         let clock_hz = extract_uart_clock(fdt, &node)?;
-        Some(UartInfo {
+        Some(ConsoleInfo {
             kind: uart_type,
             base: reg.starting_address as u64,
             clock_hz,
@@ -163,8 +163,8 @@ pub fn find_uart(fdt: &fdt::Fdt) -> Option<UartInfo> {
     for node in fdt.all_nodes() {
         if let Some(compat) = node.compatible() {
             for compat_str in compat.all() {
-                let t = uart_type_from_compatible(compat_str);
-                if t != UartType::Unknown {
+                let t = console_type_from_compatible(compat_str);
+                if t != ConsoleType::Unknown {
                     if let Some(uart) = node_to_uart_info(node) {
                         return Some(uart);
                     }

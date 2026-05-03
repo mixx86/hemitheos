@@ -51,7 +51,7 @@ impl Pl011 {
     }
 }
 
-impl crate::uart::UartDriver for Pl011 {
+impl crate::console::ConsoleDriver for Pl011 {
     fn puts(&self, s: &str) {
         for &b in s.as_bytes() {
             // Polling TXFF (bit 5) before each write prevents overflowing the 16-byte TX FIFO.
@@ -66,7 +66,7 @@ impl crate::uart::UartDriver for Pl011 {
 
 static DRIVER: crate::sync::Once<Pl011> = crate::sync::Once::new();
 
-pub fn init(base: u64, clock_hz: u32) -> &'static dyn crate::uart::UartDriver {
+pub fn init(base: u64, clock_hz: u32) -> &'static dyn crate::console::ConsoleDriver {
     let pl011 = Pl011::new(base, clock_hz);
     pl011.init();
     DRIVER.set(pl011);
