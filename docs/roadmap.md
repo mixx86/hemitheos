@@ -27,6 +27,7 @@ Get the hypervisor to boot on the target hardware, establish a working environme
 - [x] DTB clock extraction: direct `clock-frequency` property and phandle resolution (`fixed-clock` provider); covers QEMU virt and most real platforms
 - [x] PL011 `puts`: spin on `UARTFR.TXFF`, write to `UARTDR`, drain on `UARTFR.BUSY` before return
 - [x] `uart::init` wired in `main` from `PlatformInfo`
+- [x] Migrate `uart.rs` / `pl011.rs` driver globals from `static mut` to `sync::Once`
 
 ### Pending
 - [ ] `log.rs`: `core::fmt::Write` over `uart::puts`; expose `kprint!` / `kprintln!` macros kernel-wide
@@ -166,6 +167,5 @@ The primary extension: allow multiple machines running hemitheos to form a clust
 
 | Item | Location | Notes |
 |---|---|---|
-| `static mut` driver globals | `uart.rs`, `pl011.rs` | Acceptable pre-SMP; revisit when secondary cores start (Phase 3) |
 | Exception vectors mostly `b .` | `asm/aarch64/vectors.s` | Need save/restore frame and structured dispatch (Phase 1 pending) |
 | Empty `log.rs` | `src/log.rs` | Low-effort, high-value; blocked on nothing (Phase 1 pending) |

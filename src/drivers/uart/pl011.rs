@@ -20,22 +20,19 @@ impl Pl011 {
     }
 
     pub fn init(&self) {
-        // SAFETY: all accesses go through read_reg/write_reg which enforce
-        // volatile MMIO semantics. The sequence follows the PL011 TRM
-        // initialisation procedure: disable → configure baud/format → enable.
-        unsafe {
-            self.write_reg(UARTCR, 0x00);
+        // Sequence follows the PL011 TRM initialisation procedure:
+        // disable → configure baud/format → enable.
+        self.write_reg(UARTCR, 0x00);
 
-            let baud = 115200u32;
-            let divisor = self.clock_hz as u32 / (16 * baud);
-            let int_div = divisor;
-            let frac_div = (((self.clock_hz as u32 % (16 * baud)) * 64) + (8 * baud)) / (16 * baud);
-            self.write_reg(UARTIBRD, int_div);
-            self.write_reg(UARTFBRD, frac_div);
+        let baud = 115200u32;
+        let divisor = self.clock_hz as u32 / (16 * baud);
+        let int_div = divisor;
+        let frac_div = (((self.clock_hz as u32 % (16 * baud)) * 64) + (8 * baud)) / (16 * baud);
+        self.write_reg(UARTIBRD, int_div);
+        self.write_reg(UARTFBRD, frac_div);
 
-            self.write_reg(UARTLCR_H, UARTLCR_H_WLEN_8 | UARTLCR_H_FEN);
-            self.write_reg(UARTCR, UARTCR_UARTEN | UARTCR_TXE);
-        }
+        self.write_reg(UARTLCR_H, UARTLCR_H_WLEN_8 | UARTLCR_H_FEN);
+        self.write_reg(UARTCR, UARTCR_UARTEN | UARTCR_TXE);
     }
     #[inline]
     fn read_reg(&self, offset: u64) -> u32 {
@@ -57,35 +54,21 @@ impl Pl011 {
 impl crate::uart::UartDriver for Pl011 {
     fn puts(&self, s: &str) {
         for &b in s.as_bytes() {
-            // SAFETY: UARTFR and UARTDR are valid registers for an initialised
-            // PL011. Polling TXFF (bit 5) before each write prevents overflowing
-            // the 16-byte TX FIFO.
-            unsafe {
-                while self.read_reg(UARTFR) & (1 << 5) != 0 {}
-                self.write_reg(0x00, b as u32);
-            }
+            // Polling TXFF (bit 5) before each write prevents overflowing the 16-byte TX FIFO.
+            while self.read_reg(UARTFR) & (1 << 5) != 0 {}
+            self.write_reg(0x00, b as u32);
         }
-        // SAFETY: polling BUSY (bit 3 of UARTFR) ensures all bytes have been
-        // physically transmitted before returning, preventing data loss when
-        // the caller proceeds to reset or disable the UART.
-        unsafe { while self.read_reg(UARTFR) & (1 << 3) != 0 {} }
+        // Polling BUSY (bit 3) ensures all bytes have been physically transmitted
+        // before returning, preventing data loss if the caller resets or disables the UART.
+        while self.read_reg(UARTFR) & (1 << 3) != 0 {}
     }
 }
 
-// SAFETY: written once during single-threaded init, read-only afterwards
-static mut DRIVER: Option<Pl011> = None;
+static DRIVER: crate::sync::Once<Pl011> = crate::sync::Once::new();
 
-#[allow(static_mut_refs)]
 pub fn init(base: u64, clock_hz: u32) -> &'static dyn crate::uart::UartDriver {
-    // SAFETY: called once during single-threaded boot before any secondary
-    // CPUs are started. After this function returns, DRIVER is never mutated
-    // again, so the shared &'static reference is sound.
-    unsafe {
-        if DRIVER.is_none() {
-            let pl011 = Pl011::new(base, clock_hz);
-            pl011.init();
-            DRIVER = Some(pl011);
-        }
-        DRIVER.as_ref().unwrap() as &dyn crate::uart::UartDriver
-    }
+    let pl011 = Pl011::new(base, clock_hz);
+    pl011.init();
+    DRIVER.set(pl011);
+    DRIVER.get().unwrap()
 }
