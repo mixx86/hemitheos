@@ -1,19 +1,23 @@
 #![no_std]
 #![no_main]
 
+use hemitheos::console;
+use hemitheos::console::console;
 use hemitheos::dtb;
-use hemitheos::uart;
 
 use core::panic::PanicInfo;
 
 #[unsafe(no_mangle)]
 pub extern "C" fn main(dtb_addr: usize) -> ! {
+    let platform = dtb::parse_dtb(dtb_addr);
+    console::init(platform.console);
+    console::puts("hey");
     loop {}
 }
 
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
-    uart::puts("PANIC!\n");
+    console::puts("PANIC!\n");
 
     loop {
         unsafe {

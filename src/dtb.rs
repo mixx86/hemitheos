@@ -5,8 +5,8 @@ use crate::sync;
 static PLATFORM: sync::Once<PlatformInfo> = sync::Once::new();
 
 pub struct PlatformInfo {
-    /// UART info (base address, uart type, possible future params...)
-    pub uart: Option<crate::uart::UartInfo>,
+    /// Console info (base address, driver type, clock)
+    pub console: Option<crate::console::ConsoleInfo>,
     /// GIC distributor base address
     pub gicd_base: u64,
     /// GIC redistributor base address (first frame)
@@ -42,7 +42,7 @@ pub fn parse_dtb(dtb_addr: usize) -> PlatformInfo {
     let fdt = unsafe { fdt::Fdt::from_ptr(dtb_addr as *const u8).expect("Failed to parse DTB") };
 
     let mut platform = PlatformInfo {
-        uart: None,
+        console: None,
         gicd_base: 0,
         gicr_base: 0,
         gicr_size: 0,
@@ -71,10 +71,7 @@ pub fn parse_dtb(dtb_addr: usize) -> PlatformInfo {
         platform.ram_size += size;
     }
 
-    // -------------------------
-    // UART
-    // -------------------------
-    platform.uart = crate::uart::find_uart(&fdt);
+    platform.console = crate::console::find_console(&fdt);
 
     // -------------------------
     // CPUs
