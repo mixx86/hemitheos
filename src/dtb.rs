@@ -1,5 +1,9 @@
 use core::prelude::v1::*;
 
+use crate::sync;
+
+static PLATFORM: sync::Once<PlatformInfo> = sync::Once::new();
+
 pub struct PlatformInfo {
     /// UART info (base address, uart type, possible future params...)
     pub uart: Option<crate::uart::UartInfo>,
@@ -101,4 +105,14 @@ pub fn parse_dtb(dtb_addr: usize) -> PlatformInfo {
     platform.gicr_size = gicr.size.unwrap_or(0) as u64;
 
     platform
+}
+
+pub fn init(dtb_addr: usize) {
+    PLATFORM.set(parse_dtb(dtb_addr));
+}
+
+pub fn platform() -> &'static PlatformInfo {
+    PLATFORM
+        .get()
+        .expect("platform not initialized — call dtb::init first")
 }

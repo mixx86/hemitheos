@@ -6,7 +6,7 @@ const ONCE_UNINIT: u8 = 0;
 const ONCE_WRITING: u8 = 1;
 const ONCE_READY: u8 = 2;
 
-struct Once<T> {
+pub struct Once<T> {
     state: AtomicU8,
     data: UnsafeCell<Option<T>>,
 }

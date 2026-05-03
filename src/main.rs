@@ -8,9 +8,6 @@ use core::panic::PanicInfo;
 
 #[unsafe(no_mangle)]
 pub extern "C" fn main(dtb_addr: usize) -> ! {
-    let platform = dtb::parse_dtb(dtb_addr);
-    uart::init(platform.uart);
-    uart::puts("hey\n");
     loop {}
 }
 
