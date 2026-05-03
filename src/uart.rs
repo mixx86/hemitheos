@@ -1,3 +1,5 @@
+use crate::sync;
+
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub enum UartType {
     Pl011,
@@ -11,8 +13,7 @@ pub trait UartDriver: Sync {
     fn puts(&self, s: &str);
 }
 
-// SAFETY: written once during single-threaded init, read-only afterwards
-static mut UART: Option<&'static dyn UartDriver> = None;
+static UART: sync::Once<&'static dyn UartDriver> = sync::Once::new();
 
 pub struct UartInfo {
     pub kind: UartType,
@@ -33,15 +34,18 @@ pub fn init(info: Option<UartInfo>) {
         UartType::Unknown => return,
     };
 
-    unsafe {
-        UART = Some(driver);
-    }
+    UART.set(driver);
+}
+
+pub fn uart() -> &'static dyn UartDriver {
+    UART.get()
+        .copied()
+        .expect("platform not initialized — call dtb::init first")
 }
 
 pub fn puts(s: &str) {
-    // SAFETY: UART is read-only after init; &'static dyn UartDriver is Copy
-    if let Some(drv) = unsafe { UART } {
-        drv.puts(s);
+    if let Some(driver) = UART.get().copied() {
+        driver.puts(s);
     }
 }
 
@@ -119,7 +123,7 @@ pub fn find_uart(fdt: &fdt::Fdt) -> Option<UartInfo> {
         Some(UartInfo {
             kind: uart_type,
             base: reg.starting_address as u64,
-            clock_hz: clock_hz,
+            clock_hz,
         })
     };
 
