@@ -4,6 +4,11 @@ const UARTFBRD: u64 = 0x28;
 const UARTLCR_H: u64 = 0x2c;
 const UARTFR: u64 = 0x18;
 
+const UARTCR_UARTEN: u32 = 1 << 0;
+const UARTCR_TXE: u32 = 1 << 8;
+const UARTLCR_H_FEN: u32 = 1 << 4;
+const UARTLCR_H_WLEN_8: u32 = 0b11 << 5;
+
 pub struct Pl011 {
     base: u64,
     clock_hz: u32,
@@ -19,25 +24,17 @@ impl Pl011 {
         // volatile MMIO semantics. The sequence follows the PL011 TRM
         // initialisation procedure: disable → configure baud/format → enable.
         unsafe {
-            // Disabling uart device
-            let mut uarten_mod: u32 = self.read_reg(UARTCR);
-            uarten_mod &= !(1 << 0);
-            self.write_reg(UARTCR, uarten_mod);
+            self.write_reg(UARTCR, 0x00);
 
-            // Setting baud rate
             let baud = 115200u32;
             let divisor = self.clock_hz as u32 / (16 * baud);
-
             let int_div = divisor;
             let frac_div = (((self.clock_hz as u32 % (16 * baud)) * 64) + (8 * baud)) / (16 * baud);
             self.write_reg(UARTIBRD, int_div);
             self.write_reg(UARTFBRD, frac_div);
 
-            // Frame format
-            self.write_reg(UARTLCR_H, 0x70);
-
-            // Enabling UART
-            self.write_reg(UARTCR, 0x101);
+            self.write_reg(UARTLCR_H, UARTLCR_H_WLEN_8 | UARTLCR_H_FEN);
+            self.write_reg(UARTCR, UARTCR_UARTEN | UARTCR_TXE);
         }
     }
     #[inline]
@@ -71,9 +68,7 @@ impl crate::uart::UartDriver for Pl011 {
         // SAFETY: polling BUSY (bit 3 of UARTFR) ensures all bytes have been
         // physically transmitted before returning, preventing data loss when
         // the caller proceeds to reset or disable the UART.
-        unsafe {
-            while self.read_reg(UARTFR) & (1 << 3) != 0 {}
-        }
+        unsafe { while self.read_reg(UARTFR) & (1 << 3) != 0 {} }
     }
 }
 
