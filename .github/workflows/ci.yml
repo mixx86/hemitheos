@@ -37,6 +37,8 @@ jobs:
         run: cargo test -p hemitheos --verbose
 
       - name: Lint (clippy)
+        env:
+          TARGET_CC: aarch64-linux-gnu-gcc
         run: cargo clippy --workspace --target aarch64-unknown-none -- -D warnings
 
       - name: Format check
