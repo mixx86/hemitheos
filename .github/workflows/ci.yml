@@ -27,6 +27,9 @@ jobs:
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
 
+      - name: Install Rust ARM64 target
+        run: rustup target add aarch64-unknown-none
+
       - name: Build
         run:  ./scripts/build.sh
 
