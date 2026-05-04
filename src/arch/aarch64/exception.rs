@@ -1,5 +1,3 @@
-use core::arch::asm;
-
 #[unsafe(no_mangle)]
 pub extern "C" fn el2_sync_handler() {
     let esr: u64;
