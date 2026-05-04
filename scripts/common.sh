@@ -16,33 +16,30 @@ note() {
   printf '%s\n' "$*"
 }
 
-# Normalize the architecture name from the target triple.
-# Supports override via TARGET_ARCH env var.
 if [[ -z "${TARGET_ARCH:-}" ]]; then
-    _raw_arch="$(printf '%s' "$TARGET_TRIPLE" | cut -d- -f1)"
-    case "$_raw_arch" in
-        aarch64)   TARGET_ARCH="aarch64" ;;
-        riscv64*)  TARGET_ARCH="riscv64" ;;
-        *)         die "unsupported target architecture: $_raw_arch" ;;
-    esac
-    unset _raw_arch
+  _raw_arch="$(printf '%s' "$TARGET_TRIPLE" | cut -d- -f1)"
+  case "$_raw_arch" in
+  aarch64) TARGET_ARCH="aarch64" ;;
+  riscv64*) TARGET_ARCH="riscv64" ;;
+  *) die "unsupported target architecture: $_raw_arch" ;;
+  esac
+  unset _raw_arch
 fi
 
-# Derive cross-compilation toolchain defaults from the target architecture.
 case "$TARGET_ARCH" in
-    aarch64)
-        TARGET_CC="${TARGET_CC:-aarch64-linux-gnu-gcc}"
-        OBJCOPY="${OBJCOPY:-aarch64-linux-gnu-objcopy}"
-        GDB_BIN="${GDB_BIN:-gdb-multiarch}"
-        ;;
-    riscv64)
-        TARGET_CC="${TARGET_CC:-riscv64-linux-gnu-gcc}"
-        OBJCOPY="${OBJCOPY:-riscv64-linux-gnu-objcopy}"
-        GDB_BIN="${GDB_BIN:-gdb-multiarch}"
-        ;;
-    *)
-        die "unsupported target architecture: $TARGET_ARCH"
-        ;;
+aarch64)
+  TARGET_CC="${TARGET_CC:-aarch64-linux-gnu-gcc}"
+  OBJCOPY="${OBJCOPY:-aarch64-linux-gnu-objcopy}"
+  GDB_BIN="${GDB_BIN:-gdb-multiarch}"
+  ;;
+riscv64)
+  TARGET_CC="${TARGET_CC:-riscv64-linux-gnu-gcc}"
+  OBJCOPY="${OBJCOPY:-riscv64-linux-gnu-objcopy}"
+  GDB_BIN="${GDB_BIN:-gdb-multiarch}"
+  ;;
+*)
+  die "unsupported target architecture: $TARGET_ARCH"
+  ;;
 esac
 
 if [[ -n "${CARGO_TARGET_DIR:-}" ]]; then
@@ -52,20 +49,36 @@ else
 fi
 
 IMAGE_DIR="$TARGET_DIR_ROOT/$TARGET_TRIPLE/$PROFILE"
-IMAGE_ELF="$IMAGE_DIR/$PROJECT_NAME"
-IMAGE_BIN="$IMAGE_DIR/$PROJECT_NAME.bin"
+
+update_image_paths() {
+  mkdir -p "$IMAGE_DIR"
+  local found_elf
+  found_elf=$(find "$IMAGE_DIR" -maxdepth 1 -type f ! -name "*.*" -printf "%s %p\n" 2>/dev/null | sort -nr | head -n1 | cut -d' ' -f2)
+
+  if [[ -n "$found_elf" ]]; then
+    IMAGE_ELF="$found_elf"
+    IMAGE_BIN="${IMAGE_ELF}.bin"
+  else
+    IMAGE_ELF="$IMAGE_DIR/$PROJECT_NAME"
+    IMAGE_BIN="$IMAGE_DIR/$PROJECT_NAME.bin"
+  fi
+}
+
+update_image_paths
 
 require_cmd() {
   command -v "$1" >/dev/null 2>&1 || die "missing command: $1"
 }
 
 require_file() {
-  [[ -f "$1" ]] || die "missing file: $1"
+  if [[ ! -f "$1" ]]; then
+    ls -la "$IMAGE_DIR" 2>/dev/null || true
+    die "missing file: $1"
+  fi
 }
 
 cargo_profile_args() {
   CARGO_PROFILE_ARGS=()
-
   if [[ "$PROFILE" == "release" ]]; then
     CARGO_PROFILE_ARGS=(--release)
   elif [[ "$PROFILE" != "dev" ]]; then
