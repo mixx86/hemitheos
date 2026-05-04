@@ -51,8 +51,9 @@ fi
 IMAGE_DIR="$TARGET_DIR_ROOT/$TARGET_TRIPLE/$PROFILE"
 
 update_image_paths() {
+  mkdir -p "$IMAGE_DIR"
   local found_elf
-  found_elf=$(find "$IMAGE_DIR" -maxdepth 1 -type f ! -name "*.*" -executable | head -n 1)
+  found_elf=$(find "$IMAGE_DIR" -maxdepth 1 -type f ! -name "*.*" -printf "%s %p\n" 2>/dev/null | sort -nr | head -n1 | cut -d' ' -f2)
 
   if [[ -n "$found_elf" ]]; then
     IMAGE_ELF="$found_elf"
@@ -70,7 +71,10 @@ require_cmd() {
 }
 
 require_file() {
-  [[ -f "$1" ]] || die "missing file: $1"
+  if [[ ! -f "$1" ]]; then
+    ls -la "$IMAGE_DIR" 2>/dev/null || true
+    die "missing file: $1"
+  fi
 }
 
 cargo_profile_args() {

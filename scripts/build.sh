@@ -48,6 +48,7 @@ cargo_profile_args
 TARGET_CC="$TARGET_CC" cargo build --target "$TARGET_TRIPLE" "${CARGO_PROFILE_ARGS[@]}"
 
 update_image_paths
+require_file "$IMAGE_ELF"
 
 "$OBJCOPY" -O binary "$IMAGE_ELF" "$IMAGE_BIN"
 
