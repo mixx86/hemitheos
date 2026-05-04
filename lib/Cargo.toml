@@ -1,0 +1,11 @@
+[package]
+name = "hemitheos"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+test = false
+doctest = false
+
+[dependencies]
+fdt = { version = "0.1", default-features = false }

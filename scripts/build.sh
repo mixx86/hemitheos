@@ -39,21 +39,13 @@ done
 
 source "$SCRIPT_DIR/common.sh"
 
-case "$TARGET_ARCH" in
-aarch64) LINKER_SCRIPT="asm/aarch64/linker.ld" ;;
-riscv64) LINKER_SCRIPT="asm/riscv64/linker.ld" ;;
-*) die "No linker script for $TARGET_ARCH" ;;
-esac
-
 require_cmd cargo
 require_cmd "$TARGET_CC"
 require_cmd "$OBJCOPY"
 
 cargo_profile_args
 
-export RUSTFLAGS="${RUSTFLAGS:-} -C link-arg=-T$LINKER_SCRIPT"
-
-TARGET_CC="$TARGET_CC" cargo build --target "$TARGET_TRIPLE" --features selftest "${CARGO_PROFILE_ARGS[@]}"
+TARGET_CC="$TARGET_CC" cargo build -p hemitheos-hv --target "$TARGET_TRIPLE" "${CARGO_PROFILE_ARGS[@]}"
 
 update_image_paths
 require_file "$IMAGE_ELF"
