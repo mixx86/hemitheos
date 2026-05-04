@@ -25,9 +25,9 @@ impl Pl011 {
         self.write_reg(UARTCR, 0x00);
 
         let baud = 115200u32;
-        let divisor = self.clock_hz as u32 / (16 * baud);
+        let divisor = self.clock_hz / (16 * baud);
         let int_div = divisor;
-        let frac_div = (((self.clock_hz as u32 % (16 * baud)) * 64) + (8 * baud)) / (16 * baud);
+        let frac_div = (((self.clock_hz % (16 * baud)) * 64) + (8 * baud)) / (16 * baud);
         self.write_reg(UARTIBRD, int_div);
         self.write_reg(UARTFBRD, frac_div);
 

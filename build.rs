@@ -17,6 +17,6 @@ fn main() {
                 .file("asm/riscv64/boot.s")
                 .compile("startup");
         }
-        arch => panic!("unsupported target architecture: {arch}"),
+        _ => (),
     }
 }

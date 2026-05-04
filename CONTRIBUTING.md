@@ -70,7 +70,7 @@ The QEMU binary, machine, and CPU are derived from the target automatically. The
 ## Project Layout
 
 ```
-src/uart.rs              UartDriver trait, global registry, DTB UART discovery
+src/console.rs              ConsoleDriver trait, global registry, DTB Console discovery
 src/drivers/uart/        One file per UART hardware variant
 src/arch/<arch>/         Architecture-specific Rust code, gated with #[cfg(target_arch)]
 src/dtb.rs               DTB parsing → PlatformInfo (interrupt controller fields are arch-gated)

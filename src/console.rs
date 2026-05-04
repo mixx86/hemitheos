@@ -38,7 +38,8 @@ pub fn init(info: Option<ConsoleInfo>) {
 }
 
 pub fn console() -> &'static dyn ConsoleDriver {
-    CONSOLE.get()
+    CONSOLE
+        .get()
         .copied()
         .expect("platform not initialized — call dtb::init first")
 }
@@ -91,18 +92,14 @@ fn extract_uart_clock(fdt: &fdt::Fdt, node: &fdt::node::FdtNode) -> Option<u32> 
     // Many platforms (including QEMU virt) define the UART clock via a
     // phandle in the 'clocks' property rather than a direct 'clock-frequency'.
     // Walk the first phandle and read clock-frequency from the provider node.
-    if let Some(clocks_prop) = node.property("clocks") {
-        if let Some(phandle) = read_be_u32(clocks_prop.value) {
-            if let Some(clock_node) = fdt.find_phandle(phandle) {
-                if let Some(freq_prop) = clock_node.property("clock-frequency") {
-                    if let Some(hz) = read_be_u32(freq_prop.value) {
-                        if (1_000_000..=500_000_000).contains(&hz) {
-                            return Some(hz);
-                        }
-                    }
-                }
-            }
-        }
+    if let Some(clocks_prop) = node.property("clocks")
+        && let Some(phandle) = read_be_u32(clocks_prop.value)
+        && let Some(clock_node) = fdt.find_phandle(phandle)
+        && let Some(freq_prop) = clock_node.property("clock-frequency")
+        && let Some(hz) = read_be_u32(freq_prop.value)
+        && (1_000_000..=500_000_000).contains(&hz)
+    {
+        return Some(hz);
     }
 
     None
@@ -114,10 +111,10 @@ pub fn find_console(fdt: &fdt::Fdt) -> Option<ConsoleInfo> {
 
         let mut uart_type = ConsoleType::Unknown;
 
-        if let Some(compat) = node.compatible() {
-            if let Some(compat_str) = compat.all().next() {
-                uart_type = console_type_from_compatible(compat_str);
-            }
+        if let Some(compat) = node.compatible()
+            && let Some(compat_str) = compat.all().next()
+        {
+            uart_type = console_type_from_compatible(compat_str);
         }
         let clock_hz = extract_uart_clock(fdt, &node)?;
         Some(ConsoleInfo {
@@ -130,14 +127,14 @@ pub fn find_console(fdt: &fdt::Fdt) -> Option<ConsoleInfo> {
     // 1. chosen
     if let Some(chosen) = fdt.find_node("/chosen") {
         for prop_name in ["stdout-path", "stdout", "linux,stdout-path"] {
-            if let Some(prop) = chosen.property(prop_name) {
-                if let Ok(path) = core::str::from_utf8(prop.value) {
-                    let node_path = path.trim_end_matches('\0');
-                    if let Some(node) = fdt.find_node(node_path) {
-                        if let Some(uart) = node_to_uart_info(node) {
-                            return Some(uart);
-                        }
-                    }
+            if let Some(prop) = chosen.property(prop_name)
+                && let Ok(path) = core::str::from_utf8(prop.value)
+            {
+                let node_path = path.trim_end_matches('\0');
+                if let Some(node) = fdt.find_node(node_path)
+                    && let Some(console) = node_to_uart_info(node)
+                {
+                    return Some(console);
                 }
             }
         }
@@ -146,14 +143,14 @@ pub fn find_console(fdt: &fdt::Fdt) -> Option<ConsoleInfo> {
     // 2. aliases fallback
     if let Some(aliases) = fdt.find_node("/aliases") {
         for alias in ["serial0", "uart0", "console"] {
-            if let Some(prop) = aliases.property(alias) {
-                if let Ok(path) = core::str::from_utf8(prop.value) {
-                    let node_path = path.trim_end_matches('\0');
-                    if let Some(node) = fdt.find_node(node_path) {
-                        if let Some(uart) = node_to_uart_info(node) {
-                            return Some(uart);
-                        }
-                    }
+            if let Some(prop) = aliases.property(alias)
+                && let Ok(path) = core::str::from_utf8(prop.value)
+            {
+                let node_path = path.trim_end_matches('\0');
+                if let Some(node) = fdt.find_node(node_path)
+                    && let Some(uart) = node_to_uart_info(node)
+                {
+                    return Some(uart);
                 }
             }
         }
@@ -164,10 +161,10 @@ pub fn find_console(fdt: &fdt::Fdt) -> Option<ConsoleInfo> {
         if let Some(compat) = node.compatible() {
             for compat_str in compat.all() {
                 let t = console_type_from_compatible(compat_str);
-                if t != ConsoleType::Unknown {
-                    if let Some(uart) = node_to_uart_info(node) {
-                        return Some(uart);
-                    }
+                if t != ConsoleType::Unknown
+                    && let Some(uart) = node_to_uart_info(node)
+                {
+                    return Some(uart);
                 }
             }
         }

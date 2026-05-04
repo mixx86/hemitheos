@@ -9,6 +9,18 @@ supported-targets = [
     "riscv64gc-unknown-none-elf",
 ]
 
+[lib]
+test = false
+doctest = false
+
+[[bin]]
+name = "hemitheos"
+test = false
+required-features = ["selftest"]
+
+[features]
+selftest = []
+
 [profile.release]
 opt-level = 2
 lto = true
