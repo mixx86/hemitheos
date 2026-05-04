@@ -14,6 +14,12 @@ pub struct Once<T> {
 // SAFETY: T: Send guarantees it's safe to share across threads once written.
 unsafe impl<T: Send> Sync for Once<T> {}
 
+impl<T> Default for Once<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T> Once<T> {
     pub const fn new() -> Self {
         Self {
