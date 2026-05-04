@@ -2,7 +2,6 @@
 #![no_main]
 
 use hemitheos::console;
-use hemitheos::console::console;
 use hemitheos::dtb;
 
 use core::panic::PanicInfo;
