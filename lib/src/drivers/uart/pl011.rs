@@ -36,10 +36,9 @@ impl Pl011 {
     }
     #[inline]
     fn read_reg(&self, offset: u64) -> u32 {
-        // SAFETY: caller guarantees base is a valid, 4-byte-aligned MMIO address
-        // for this PL011 instance, and offset is a known register offset defined
-        // as a constant in this module. Volatile prevents the read from being
-        // optimised away by the compiler.
+        // SAFETY: base is a valid 4-byte-aligned MMIO address; offset is a
+        // module-constant register offset. Volatile prevents the compiler from
+        // eliding or reordering the read.
         unsafe { core::ptr::read_volatile((self.base + offset) as *const u32) }
     }
 

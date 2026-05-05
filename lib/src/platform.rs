@@ -5,19 +5,19 @@ use crate::sync;
 static PLATFORM: sync::Once<PlatformInfo> = sync::Once::new();
 
 pub struct PlatformInfo {
-    /// Console info (base address, driver type, clock)
+    /// Discovered console (base address, driver type, input clock).
     pub console: Option<crate::console::ConsoleInfo>,
-    /// GIC distributor base address
+    /// GICv3 distributor base address.
     pub gicd_base: u64,
-    /// GIC redistributor base address (first frame)
+    /// GICv3 redistributor base address (first redistributor frame).
     pub gicr_base: u64,
-    /// GIC redistributor region size (total)
+    /// GICv3 redistributor region size in bytes (all redistributor frames combined).
     pub gicr_size: u64,
-    /// Number of CPUs discovered from /cpus node
+    /// Number of CPUs discovered from the /cpus DTB node.
     pub num_cpus: usize,
-    /// RAM base address
+    /// Physical base address of the first RAM region.
     pub ram_base: u64,
-    /// RAM size in bytes
+    /// Total RAM size in bytes (sum of all /memory regions).
     pub ram_size: u64,
 }
 
@@ -38,7 +38,8 @@ pub fn parse_dtb(dtb_addr: usize) -> PlatformInfo {
         panic!("Invalid DTB address");
     }
 
-    // SAFETY: DTB pointer is assumed valid after validation
+    // SAFETY: addr is non-null and readable (magic confirmed by validate_dtb_address);
+    // the fdt crate validates the DTB header length and structure internally.
     let fdt = unsafe { fdt::Fdt::from_ptr(dtb_addr as *const u8).expect("Failed to parse DTB") };
 
     let mut platform = PlatformInfo {
@@ -51,9 +52,6 @@ pub fn parse_dtb(dtb_addr: usize) -> PlatformInfo {
         ram_size: 0,
     };
 
-    // -------------------------
-    // RAM regions
-    // -------------------------
     let memory = fdt.memory();
     let mut regions = memory.regions().peekable();
     if regions.peek().is_none() {
@@ -73,9 +71,6 @@ pub fn parse_dtb(dtb_addr: usize) -> PlatformInfo {
 
     platform.console = crate::console::find_console(&fdt);
 
-    // -------------------------
-    // CPUs
-    // -------------------------
     let cpu_count = fdt.cpus().count();
     if cpu_count == 0 {
         panic!("No CPUs found in DTB");
@@ -83,9 +78,6 @@ pub fn parse_dtb(dtb_addr: usize) -> PlatformInfo {
 
     platform.num_cpus = cpu_count;
 
-    // -------------------------
-    // GICv3
-    // -------------------------
     let gic = fdt
         .find_compatible(&["arm,gic-v3"])
         .expect("GICv3 not found in DTB");
@@ -111,5 +103,5 @@ pub fn init(dtb_addr: usize) {
 pub fn platform() -> &'static PlatformInfo {
     PLATFORM
         .get()
-        .expect("platform not initialized — call dtb::init first")
+        .expect("platform not initialized — call platform::init first")
 }

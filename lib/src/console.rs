@@ -28,9 +28,9 @@ pub fn init(info: Option<ConsoleInfo>) {
     };
     let driver: &'static dyn ConsoleDriver = match info.kind {
         ConsoleType::Pl011 => crate::drivers::uart::pl011::init(info.base, info.clock_hz),
-        ConsoleType::Ns16550 => return, // TODO
-        ConsoleType::Msm => return,     // TODO
-        ConsoleType::DwApb => return,   // TODO
+        ConsoleType::Ns16550 => return,
+        ConsoleType::Msm => return,
+        ConsoleType::DwApb => return,
         ConsoleType::Unknown => return,
     };
 
@@ -124,7 +124,6 @@ pub fn find_console(fdt: &fdt::Fdt) -> Option<ConsoleInfo> {
         })
     };
 
-    // 1. chosen
     if let Some(chosen) = fdt.find_node("/chosen") {
         for prop_name in ["stdout-path", "stdout", "linux,stdout-path"] {
             if let Some(prop) = chosen.property(prop_name)
@@ -140,7 +139,6 @@ pub fn find_console(fdt: &fdt::Fdt) -> Option<ConsoleInfo> {
         }
     }
 
-    // 2. aliases fallback
     if let Some(aliases) = fdt.find_node("/aliases") {
         for alias in ["serial0", "uart0", "console"] {
             if let Some(prop) = aliases.property(alias)
@@ -156,7 +154,6 @@ pub fn find_console(fdt: &fdt::Fdt) -> Option<ConsoleInfo> {
         }
     }
 
-    // 3. compatible scan fallback
     for node in fdt.all_nodes() {
         if let Some(compat) = node.compatible() {
             for compat_str in compat.all() {
