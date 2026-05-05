@@ -9,3 +9,6 @@ doctest = false
 
 [dependencies]
 fdt = { version = "0.1", default-features = false }
+
+[dev-dependencies]
+fdt = { version = "0.1", default-features = false }

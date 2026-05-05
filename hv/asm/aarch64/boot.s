@@ -79,23 +79,20 @@ el2_entry:
 
     // Allow EL1 to access the physical timer counter and control registers
     // without trapping to EL2 (required by any future guest OS).
-    mov     x0, #3                  // allow EL1 access to timer registers (no traps to EL2)
+    mov     x0, #3
     msr     cnthctl_el2, x0
     isb
 
-    // Set up stack (64KB)
     adrp    x0, stack_top
     add     x0, x0, :lo12:stack_top
     mov     sp, x0
 
-    // Loading vector table
     adrp    x0, vector_table_el2
     add     x0, x0, :lo12:vector_table_el2
     msr     vbar_el2, x0
     dsb     sy
     isb
 
-    // Clear BSS section
     adrp    x0, __bss_start
     add     x0, x0, :lo12:__bss_start
     adrp    x1, __bss_end
@@ -113,7 +110,6 @@ clear_bss_tail:
     b       clear_bss_tail
 
 clear_bss_done:
-    // Pass DTB address as first argument to main
     mov     x0, x20
     bl      main
 
