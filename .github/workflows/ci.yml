@@ -43,3 +43,6 @@ jobs:
 
       - name: Format check
         run: cargo fmt -- --check
+
+      - name: Dependency check (cargo-deny)
+        uses: EmbarkStudios/cargo-deny-action@v2

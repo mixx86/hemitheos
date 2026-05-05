@@ -2,6 +2,7 @@
 name = "hemitheos-hv"
 version = "0.1.0"
 edition = "2024"
+license = "MIT"
 
 [package.metadata]
 supported-targets = [
