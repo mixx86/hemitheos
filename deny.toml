@@ -1,10 +1,11 @@
 [advisories]
-# All advisories (vulnerabilities, unsound code, yanked crates) are denied by
-# default in cargo-deny 0.14+. Add RUSTSEC IDs here only to explicitly ignore
-# a known advisory with justification.
-ignore = []
+version = 2
+# Deny crates with known security vulnerabilities.
+deny = ["unmaintained", "unsound", "yanked"]
 
 [licenses]
+version = 2
+# Allowed licenses for all dependencies.
 # MPL-2.0: fdt crate. Weak copyleft — changes to fdt source must be shared,
 # but the hypervisor code linking against it is not affected.
 allow = [
@@ -12,11 +13,19 @@ allow = [
     "Apache-2.0",
     "Apache-2.0 WITH LLVM-exception",
     "MPL-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Unicode-DFS-2016",
 ]
 
 [bans]
+version = 2
+# Deny multiple versions of the same crate in the dependency graph.
 multiple-versions = "deny"
 
 [sources]
+version = 2
+# Only allow dependencies from crates.io.
 unknown-registry = "deny"
 unknown-git = "deny"
