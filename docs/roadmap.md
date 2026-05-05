@@ -20,14 +20,16 @@ Get the hypervisor to boot on the target hardware, establish a working environme
 - [x] EL2 vector table loaded into `VBAR_EL2`
 - [x] EL2 synchronous exception handler (reads `ESR_EL2`, panics)
 - [x] DTB validation (magic check) and parsing via `fdt` crate
-- [x] `PlatformInfo` extraction: RAM regions, CPU count, GICv3 bases, UART
-- [x] `UartDriver` trait + global driver registry
-- [x] UART discovery from DTB (`/chosen`, `/aliases`, compatible scan)
+- [x] `PlatformInfo` extraction: RAM regions, CPU count, GICv3 bases, console
+- [x] `ConsoleDriver` trait + global driver registry via `sync::Once`
+- [x] Console discovery from DTB (`/chosen`, `/aliases`, compatible scan)
 - [x] PL011 driver: hardware init, baud rate computed from clock frequency read from DTB
 - [x] DTB clock extraction: direct `clock-frequency` property and phandle resolution (`fixed-clock` provider); covers QEMU virt and most real platforms
 - [x] PL011 `puts`: spin on `UARTFR.TXFF`, write to `UARTDR`, drain on `UARTFR.BUSY` before return
 - [x] `console::init` wired in `main` from `PlatformInfo`
-- [x] Migrate `console.rs` / `pl011.rs` driver globals from `static mut` to `sync::Once`
+- [x] Driver globals migrated from `static mut` to `sync::Once`
+- [x] CI pipeline: build, host test suite, clippy (cross-target), fmt check
+- [x] Integration tests for `sync::Once` (host-runnable)
 
 ### Pending
 - [ ] `log.rs`: `core::fmt::Write` over `console::puts`; expose `kprint!` / `kprintln!` macros kernel-wide
@@ -167,5 +169,5 @@ The primary extension: allow multiple machines running hemitheos to form a clust
 
 | Item | Location | Notes |
 |---|---|---|
-| Exception vectors mostly `b .` | `asm/aarch64/vectors.s` | Need save/restore frame and structured dispatch (Phase 1 pending) |
-| Empty `log.rs` | `src/log.rs` | Low-effort, high-value; blocked on nothing (Phase 1 pending) |
+| Exception vectors mostly `b .` | `hv/asm/aarch64/vectors.s` | Need save/restore frame and structured dispatch (Phase 1 pending) |
+| Empty `log.rs` | `lib/src/log.rs` | Low-effort, high-value; blocked on nothing (Phase 1 pending) |
