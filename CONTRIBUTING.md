@@ -75,6 +75,19 @@ The binary crate (`hv/`) targets AArch64 bare-metal only and is validated via QE
 ---
 
 ## Project Layout
+
+```
+hv/src/main.rs              Hypervisor entry point and panic handler
+hv/src/arch/<arch>/         Exception handlers, gated with #[cfg(target_arch)]
+hv/asm/<arch>/              Boot assembly, EL2 vector table, linker script
+hv/build.rs                 Compiles asm/ via cc crate, sets linker script
+
+lib/src/platform.rs         DTB parsing → PlatformInfo (RAM, CPUs, GIC, console)
+lib/src/console.rs          ConsoleDriver trait, global registry, DTB console discovery
+lib/src/drivers/uart/       One file per UART hardware variant
+lib/src/sync.rs             Once<T> — safe one-time global initialization
+lib/src/log.rs              Hypervisor logging (stub — contributions welcome)
+lib/tests/                  Host-runnable integration tests
 ```
 
 ---
