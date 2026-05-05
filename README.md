@@ -26,6 +26,28 @@ See [`docs/roadmap.md`](docs/roadmap.md) for the full plan.
 
 ---
 
+## Repository Layout
+
+```
+hv/                 Binary crate — boot entry, main, exception handlers
+  src/main.rs       Hypervisor entry point
+  src/arch/         Architecture-specific exception handlers
+  asm/aarch64/      Boot assembly, vector table, linker script
+  build.rs          Assembles asm/ via the cc crate
+
+lib/                Library crate — all reusable, host-testable logic
+  src/platform.rs   DTB parsing → PlatformInfo (RAM, CPUs, GIC, console)
+  src/console.rs    ConsoleDriver trait, global registry, DTB discovery
+  src/drivers/      Hardware drivers (uart/pl011.rs)
+  src/sync.rs       Once<T> — safe one-time global initialization
+  tests/            Integration tests (run on host with cargo test)
+
+scripts/            Build, check, QEMU, and GDB helper scripts
+docs/               Architecture, assumptions, and roadmap
+```
+
+---
+
 ## Build, Emulation & Debug
 
 All scripts accept `--target <arch>` to select the target architecture and `--help` to show usage. The `TARGET_TRIPLE` env var is also supported and is overridden by `--target`. Default target is `aarch64`.
@@ -54,6 +76,18 @@ bash scripts/gdb.sh [--target aarch64]
 ```
 
 The QEMU binary, machine, and CPU are derived automatically from the target. They can be overridden via `QEMU_BIN`, `QEMU_MACHINE`, and `QEMU_CPU`. The QEMU scripts are bring-up aids scoped to the `virt` machine; they are not a statement about the supported deployment targets.
+
+---
+
+## Testing
+
+The library crate has a host-runnable integration test suite covering `sync::Once`:
+
+```bash
+cargo test -p hemitheos
+```
+
+The binary crate (`hv/`) targets AArch64 bare-metal and cannot be tested on the host. End-to-end validation runs via QEMU (`scripts/qemu-run.sh`).
 
 ---
 

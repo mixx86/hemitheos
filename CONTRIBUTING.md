@@ -8,14 +8,13 @@ To add support for a new architecture the following pieces are needed:
 
 | What | Where |
 |---|---|
-| Boot entry + linker script | `asm/<arch>/` |
-| Arch module (exception handlers, etc.) | `src/arch/<arch>/mod.rs`, gated with `#[cfg(target_arch = "...")]` |
-| ASM compilation | `build.rs` — add a new `match` arm |
-| Linker flags | `.cargo/config.toml` — add a `[target.<triple>]` section |
+| Boot entry + linker script | `hv/asm/<arch>/` |
+| Arch exception handlers | `hv/src/arch/<arch>/mod.rs`, gated with `#[cfg(target_arch = "...")]` |
+| ASM compilation + linker flag | `hv/build.rs` — add a new `match` arm |
 | Toolchain defaults | `scripts/common.sh` — extend the `case "$TARGET_ARCH"` block |
 | QEMU defaults | `scripts/qemu-common.sh` — extend the `case "$TARGET_ARCH"` block |
 | Short name alias | All scripts — extend the `--target` `case` block |
-| Arch-conditional DTB fields | `src/dtb.rs` — `PlatformInfo` and `parse_dtb` |
+| Arch-conditional platform fields | `lib/src/platform.rs` — `PlatformInfo` and `parse_dtb` |
 
 Open an issue before starting a port so scope and readiness can be discussed.
 
@@ -37,15 +36,13 @@ The build system derives the cross-compilation toolchain, linker script, and QEM
 
 Run `bash scripts/doctor.sh` to verify what is and isn't present.
 
-All scripts accept `--target <arch|triple>` to select the target and `--help` to show full usage. The `TARGET_TRIPLE` env var is also supported; `--target` takes precedence.
-
 ```bash
 bash scripts/doctor.sh --target aarch64   # verify prerequisites
 bash scripts/check.sh  --target aarch64   # formatter + clippy
 bash scripts/build.sh  --target aarch64   # compile and strip to raw binary
 ```
 
-The build compiles assembly via the `cc` crate, links with the target-specific linker script under `asm/<arch>/`, and strips the ELF to a raw binary. The following variables can be overridden via env or derived automatically from the target:
+The build compiles assembly via the `cc` crate, links with the target-specific linker script under `hv/asm/<arch>/`, and strips the ELF to a raw binary. The following variables can be overridden via env or derived automatically from the target:
 
 | Variable | Default (AArch64) | Purpose |
 |---|---|---|
@@ -65,17 +62,32 @@ bash scripts/gdb.sh        [--target aarch64]  # connect GDB (second terminal)
 
 The QEMU binary, machine, and CPU are derived from the target automatically. They can be overridden via `QEMU_BIN`, `QEMU_MACHINE`, and `QEMU_CPU`. The GDB architecture is also set automatically. The `qemu-*` scripts are scoped to the `virt` machine; they are bring-up aids, not the boundary of supported deployment targets.
 
+### Testing
+
+The library crate is host-testable:
+
+```bash
+cargo test -p hemitheos
+```
+
+The binary crate (`hv/`) targets AArch64 bare-metal only and is validated via QEMU.
+
 ---
 
 ## Project Layout
 
 ```
-src/console.rs              ConsoleDriver trait, global registry, DTB Console discovery
-src/drivers/uart/        One file per UART hardware variant
-src/arch/<arch>/         Architecture-specific Rust code, gated with #[cfg(target_arch)]
-src/dtb.rs               DTB parsing → PlatformInfo (interrupt controller fields are arch-gated)
-src/log.rs               Hypervisor logging (stub — contributions welcome)
-asm/<arch>/              Assembly entry point, vector table, and linker script per architecture
+hv/src/main.rs              Hypervisor entry point and panic handler
+hv/src/arch/<arch>/         Exception handlers, gated with #[cfg(target_arch)]
+hv/asm/<arch>/              Boot assembly, EL2 vector table, linker script
+hv/build.rs                 Compiles asm/ via cc crate, sets linker script
+
+lib/src/platform.rs         DTB parsing → PlatformInfo (RAM, CPUs, GIC, console)
+lib/src/console.rs          ConsoleDriver trait, global registry, DTB console discovery
+lib/src/drivers/uart/       One file per UART hardware variant
+lib/src/sync.rs             Once<T> — safe one-time global initialization
+lib/src/log.rs              Hypervisor logging (stub — contributions welcome)
+lib/tests/                  Host-runnable integration tests
 ```
 
 ---
@@ -86,8 +98,8 @@ asm/<arch>/              Assembly entry point, vector table, and linker script p
 - No heap allocations until an allocator is explicitly introduced
 - `unsafe` blocks must have a `// SAFETY:` comment explaining the invariant being upheld
 - No comments that describe *what* the code does — only *why* when it is non-obvious
-- Architecture-specific code lives under `src/arch/<arch>/` and `asm/<arch>/`, gated with `#[cfg(target_arch = "...")]`
-- New hardware drivers go under `src/drivers/<subsystem>/<variant>.rs` and expose an `init(base: u64) -> &'static dyn <Trait>` function
+- Architecture-specific code lives under `hv/src/arch/<arch>/` and `hv/asm/<arch>/`, gated with `#[cfg(target_arch = "...")]`
+- New hardware drivers go under `lib/src/drivers/<subsystem>/<variant>.rs` and expose an `init(base: u64, ...) -> &'static dyn <Trait>` function
 
 ---
 
