@@ -4,7 +4,9 @@ const VIRT_DTB: &[u8] = include_bytes!("fixtures/qemu-virt-aarch64.dtb");
 // Vec<u32> guarantees this. The bytes are copied without reinterpreting their values.
 fn aligned_copy(src: &[u8]) -> Vec<u32> {
     let mut buf = vec![0u32; (src.len() + 3) / 4];
-    let bytes = unsafe { std::slice::from_raw_parts_mut(buf.as_mut_ptr() as *mut u8, src.len()) };
+    let bytes = unsafe {
+        std::slice::from_raw_parts_mut(buf.as_mut_ptr() as *mut u8, src.len())
+    };
     bytes.copy_from_slice(src);
     buf
 }

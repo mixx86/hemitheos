@@ -1,7 +1,7 @@
 use hemitheos::sync::Once;
 use std::sync::{
-    Arc, Barrier,
     atomic::{AtomicUsize, Ordering},
+    Arc, Barrier,
 };
 use std::thread;
 
