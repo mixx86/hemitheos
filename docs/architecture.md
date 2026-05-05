@@ -27,7 +27,7 @@ All parameters can be overridden via environment variables — see `scripts/qemu
 
 ## Memory Layout
 
-Defined in `asm/aarch64/linker.ld`. The load address is set per-target:
+Defined in `hv/asm/aarch64/linker.ld`. The load address is set per-target:
 
 ```
 <load_base>  .text.boot      ARM64 Image header + boot entry
@@ -50,7 +50,7 @@ The ARM64 Image header at offset 0 signals to any compliant bootloader (not just
 ```
 Bootloader / firmware
   └─ loads hemitheos.bin at RAM_BASE + text_offset (ARM64 Image protocol)
-       └─ _img_start (boot.s)
+       └─ _img_start (hv/asm/aarch64/boot.s)
             ├─ branches to _start (skipping Image header)
             ├─ primary CPU election via ldaxr/stlxr on _boot_cpu_online
             │    └─ secondary CPUs → secondary_halt (wfe loop)
@@ -64,49 +64,49 @@ Bootloader / firmware
             ├─ sets up 64 KiB stack
             ├─ loads VBAR_EL2 with vector_table_el2
             ├─ clears .bss
-            └─ bl main (Rust)
-                 ├─ parse_dtb(x0) → PlatformInfo
+            └─ bl main (hv/src/main.rs)
+                 ├─ platform::parse_dtb(x0) → PlatformInfo
                  │    ├─ validate DTB magic (0xD00DFEED)
                  │    ├─ memory regions (ram_base, ram_size)
                  │    ├─ CPU count
-                 │    ├─ GICv3 base addresses (AArch64 only)
-                 │    └─ UART discovery (find_uart)
-                 ├─ uart::init(platform.uart)
-                 └─ loop {}
+                 │    ├─ GICv3 base addresses
+                 │    └─ console::find_console → ConsoleInfo
+                 ├─ console::init(platform.console)
+                 └─ loop { wfe }
 ```
 
 ---
 
-## UART Subsystem
+## Console Subsystem
 
-### Driver trait
-
-`src/uart.rs` defines `UartDriver`:
+### Driver trait (`lib/src/console.rs`)
 
 ```rust
-pub trait UartDriver: Sync {
+pub trait ConsoleDriver: Sync {
     fn puts(&self, s: &str);
 }
 ```
 
-A single global `static mut UART: Option<&'static dyn UartDriver>` holds the active driver after `uart::init` is called. The global is written once during single-threaded init; reads after that are safe.
+A single global `static CONSOLE: Once<&'static dyn ConsoleDriver>` holds the active driver after `console::init` is called. `Once<T>` (in `lib/src/sync.rs`) guarantees safe one-time initialization without heap allocation or locks.
 
-`uart::puts(s)` is the public API consumed by the rest of the kernel.
+`console::puts(s)` is the public API consumed by the rest of the kernel. It is a no-op if called before `init`.
 
-### PL011 driver (`src/drivers/uart/pl011.rs`)
+### PL011 driver (`lib/src/drivers/uart/pl011.rs`)
 
-Current state — partial implementation:
+Initialization sequence follows the PL011 TRM:
 
-1. Disable UART (`UARTCR`: clear UARTEN bit)
+1. Disable UART (`UARTCR`: clear all bits)
 2. Compute and write baud rate divisors (`UARTIBRD`, `UARTFBRD`) from the clock frequency read from the DTB
+3. Configure 8N1 line control + FIFO enable (`UARTLCR_H`)
+4. Enable UART and TX (`UARTCR`: set `UARTEN | TXE`)
 
-Not yet implemented: line control register setup, FIFO enable, TX/RX enable, interrupt masking, and the actual `puts` transmit loop.
+Transmit loop in `puts`: polls `UARTFR.TXFF` before each byte (prevents FIFO overflow), then polls `UARTFR.BUSY` after the last byte (ensures drain before returning).
 
-The driver instance lives in `static mut DRIVER: Option<Pl011>` inside the module. `pl011::init(base, clock_hz)` initializes it once and returns `&'static dyn UartDriver`.
+The driver instance lives in `static DRIVER: Once<Pl011>`. `pl011::init(base, clock_hz)` initializes it once and returns `&'static dyn ConsoleDriver`.
 
-### UART discovery
+### Console discovery (`lib/src/console.rs`)
 
-`uart::find_uart(fdt)` walks the DTB in priority order:
+`console::find_console(fdt)` walks the DTB in priority order:
 
 1. `/chosen` → `stdout-path` / `stdout` / `linux,stdout-path`
 2. `/aliases` → `serial0` / `uart0` / `console`
@@ -121,38 +121,43 @@ Recognized compatible strings:
 | `snps,dw-apb-uart` | DW APB *(not yet implemented)* |
 | `qcom,msm-uartdm` | MSM *(not yet implemented)* |
 
+Clock frequency is read from the UART node's `clock-frequency` property. If absent, the crate follows the first `clocks` phandle and reads `clock-frequency` from the provider node, covering platforms (including QEMU `virt`) that use a fixed-clock provider.
+
 ---
 
-## DTB Parsing
+## Platform Module (`lib/src/platform.rs`)
 
-`src/dtb.rs` uses the `fdt` crate (no_std) to extract `PlatformInfo` at boot.
+`platform::parse_dtb(dtb_addr)` extracts `PlatformInfo` from the DTB at boot using the `fdt` crate (no_std).
 
-Fields present on all architectures:
+```rust
+pub struct PlatformInfo {
+    pub console: Option<ConsoleInfo>,   // discovered UART
+    pub ram_base: u64,
+    pub ram_size: u64,
+    pub num_cpus: usize,
+    pub gicd_base: u64,                 // GICv3 distributor
+    pub gicr_base: u64,                 // GICv3 redistributor base
+    pub gicr_size: u64,                 // GICv3 redistributor region size
+}
+```
 
 | Field | Source |
 |---|---|
-| `uart` | `uart::find_uart` |
-| `ram_base`, `ram_size` | `/memory` regions |
+| `console` | `console::find_console` |
+| `ram_base`, `ram_size` | `/memory` regions (summed) |
 | `num_cpus` | `/cpus` node count |
-
-Architecture-conditional fields:
-
-| Field | Arch | Source |
-|---|---|---|
-| `gicd_base` | AArch64 | First `reg` entry of `arm,gic-v3` node |
-| `gicr_base`, `gicr_size` | AArch64 | Second `reg` entry of `arm,gic-v3` node |
-| `plic_base` | RISC-V | `reg` entry of `riscv,plic0` / `sifive,plic-1.0.0` node |
+| `gicd_base`, `gicr_base`, `gicr_size` | First and second `reg` entries of `arm,gic-v3` node |
 
 ---
 
 ## Exception Handling
 
-The EL2 vector table (`asm/aarch64/vectors.s`) has 16 entries (4 groups × 4 vectors). Currently:
+The EL2 vector table (`hv/asm/aarch64/vectors.s`) has 16 entries (4 groups × 4 vectors). Currently:
 
-- **EL2 synchronous from current EL (SPx)** → calls `el2_sync_handler` (Rust)
+- **EL2 synchronous from current EL (SPx)** → calls `el2_sync_handler` (`hv/src/arch/aarch64/exception.rs`)
 - All other entries → `b .` (infinite loop / halt)
 
-`el2_sync_handler` reads `ESR_EL2` and calls `panic!`. The panic handler writes `"PANIC!\n"` via `uart::puts` and then parks the CPU in a `wfe` loop.
+`el2_sync_handler` reads `ESR_EL2` and calls `panic!`. The panic handler writes `"PANIC!\n"` via `console::puts` and parks the CPU in a `wfe` loop.
 
 ---
 
