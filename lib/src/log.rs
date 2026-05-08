@@ -132,11 +132,3 @@ macro_rules! log_debug {
           }
       }};
 }
-
-macro_rules! print {
-    ($($arg:tt)*) => { log_info!($($arg)*) };
-}
-
-macro_rules! println {
-      ($($arg:tt)*) => { log_info!("{}\n", format_args!($($arg)*)) };
-}

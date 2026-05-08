@@ -30,9 +30,9 @@ Get the hypervisor to boot on the target hardware, establish a working environme
 - [x] Driver globals migrated from `static mut` to `sync::Once`
 - [x] CI pipeline: build, host test suite, clippy (cross-target), fmt check
 - [x] Integration tests for `sync::Once` (host-runnable)
-- [X] `log.rs`: ring buffer + fmt::Write; console::puts gated by log level; print!/println! macros
 
 ### Pending
+- [ ] `log.rs`: `core::fmt::Write` over `console::puts`; expose `kprint!` / `kprintln!` macros kernel-wide
 - [ ] Exception vector table: save/restore register frame, structured dispatch to Rust handlers
 
 ---
