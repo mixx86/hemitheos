@@ -28,6 +28,9 @@ while [[ $# -gt 0 ]]; do
     *) TARGET_TRIPLE="$1" ;;
     esac
     ;;
+  --debug | -d)
+    export PROFILE="dev"
+    ;;
   --help | -h) usage ;;
   *)
     printf 'error: unknown argument: %s\n' "$1" >&2
