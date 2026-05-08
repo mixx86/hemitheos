@@ -3,7 +3,8 @@
 
 mod arch;
 
-use hemitheos::{console, log, log_debug, log_error, platform};
+use hemitheos::console;
+use hemitheos::platform;
 
 use core::panic::PanicInfo;
 
@@ -11,8 +12,7 @@ use core::panic::PanicInfo;
 pub extern "C" fn main(dtb_addr: usize) -> ! {
     let platform = platform::parse_dtb(dtb_addr);
     console::init(platform.console);
-    log_debug!("Hemitheos\n");
-
+    console::puts("hey");
     loop {
         unsafe {
             #[cfg(target_arch = "aarch64")]
@@ -24,9 +24,8 @@ pub extern "C" fn main(dtb_addr: usize) -> ! {
 }
 
 #[panic_handler]
-#[cfg(not(test))]
 fn panic(_info: &PanicInfo) -> ! {
-    log_error!("Panic! :(");
+    console::puts("PANIC!\n");
 
     loop {
         unsafe {

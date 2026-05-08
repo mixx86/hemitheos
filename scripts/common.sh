@@ -48,9 +48,7 @@ else
   TARGET_DIR_ROOT="$REPO_ROOT/target"
 fi
 
-CARGO_DIR="${PROFILE}"
-[[ "$PROFILE" == "dev" ]] && CARGO_DIR="debug"
-IMAGE_DIR="$TARGET_DIR_ROOT/$TARGET_TRIPLE/$CARGO_DIR"
+IMAGE_DIR="$TARGET_DIR_ROOT/$TARGET_TRIPLE/$PROFILE"
 
 update_image_paths() {
   mkdir -p "$IMAGE_DIR"
