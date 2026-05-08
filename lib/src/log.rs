@@ -103,12 +103,14 @@ pub fn log_write(level: LogLevel, args: core::fmt::Arguments) {
     let _ = write!(writer, "{}", args);
 }
 
+#[macro_export]
 macro_rules! log_error {
       ($($arg:tt)*) => {{
             $crate::log::log_write($crate::log::LogLevel::Error, format_args!($($arg)*));
       }};
 }
 
+#[macro_export]
 macro_rules! log_warn {
       ($($arg:tt)*) => {{
           if ($crate::log::LogLevel::Warn as u8) <= ($crate::log::MAX_LOG_LEVEL as u8) {
@@ -117,6 +119,7 @@ macro_rules! log_warn {
       }};
 }
 
+#[macro_export]
 macro_rules! log_info {
       ($($arg:tt)*) => {{
           if ($crate::log::LogLevel::Info as u8) <= ($crate::log::MAX_LOG_LEVEL as u8) {
@@ -125,6 +128,7 @@ macro_rules! log_info {
       }};
 }
 
+#[macro_export]
 macro_rules! log_debug {
       ($($arg:tt)*) => {{
           if ($crate::log::LogLevel::Debug as u8) <= ($crate::log::MAX_LOG_LEVEL as u8) {
@@ -133,10 +137,13 @@ macro_rules! log_debug {
       }};
 }
 
+#[macro_export]
 macro_rules! print {
     ($($arg:tt)*) => { log_info!($($arg)*) };
 }
 
+#[macro_export]
 macro_rules! println {
-      ($($arg:tt)*) => { log_info!("{}\n", format_args!($($arg)*)) };
+    () => { log_info!("\n") };
+    ($($arg:tt)*) => { log_info!("{}\n", format_args!($($arg)*)) };
 }
