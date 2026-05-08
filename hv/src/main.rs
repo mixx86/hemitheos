@@ -3,7 +3,7 @@
 
 mod arch;
 
-use hemitheos::{console, log, log_debug, log_error, platform};
+use hemitheos::{console, log_debug, log_error, platform};
 
 use core::panic::PanicInfo;
 
