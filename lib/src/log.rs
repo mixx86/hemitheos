@@ -70,15 +70,7 @@ impl LogBuffer {
     }
 }
 
-impl Default for LogBuffer {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-#[allow(clippy::declare_interior_mutable_const)]
 const EMPTY: LogBuffer = LogBuffer::new();
-
 static LOG_BUFFERS: [LogBuffer; platform::MAX_SMP_CPUS] = [EMPTY; platform::MAX_SMP_CPUS];
 
 fn current_log_buffer() -> &'static LogBuffer {
