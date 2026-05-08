@@ -4,6 +4,24 @@ use crate::sync;
 
 static PLATFORM: sync::Once<PlatformInfo> = sync::Once::new();
 
+pub const MAX_SMP_CPUS: usize = 8;
+
+pub fn current_cpu_id() -> usize {
+    #[cfg(target_arch = "aarch64")]
+    {
+        let mut cpu_id: usize;
+        unsafe {
+            core::arch::asm!("mrs {}, mpidr_el1", out(reg) cpu_id, options(nostack, nomem));
+        }
+        cpu_id &= 0xFF;
+        cpu_id
+    }
+    #[cfg(not(target_arch = "aarch64"))]
+    {
+        0
+    }
+}
+
 pub struct PlatformInfo {
     /// Discovered console (base address, driver type, input clock).
     pub console: Option<crate::console::ConsoleInfo>,
