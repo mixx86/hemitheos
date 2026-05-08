@@ -4,9 +4,6 @@
 # Logs
 *.log
 
-# Nvim env files
-.nvim*
-
 # Temporary/system files
 .DS_Store
 Thumbs.db
