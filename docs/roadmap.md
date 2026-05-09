@@ -35,20 +35,7 @@ Get the hypervisor to boot on the target hardware, establish a working environme
 
 ---
 
-## Phase 2 — Hardware Abstractions
-
-Initialize and manage the hardware the hypervisor depends on before guests can run.
-
-- [ ] GICv3 initialization: distributor (`GICD_CTLR`) and redistributors
-- [ ] GICv3 interrupt routing to EL2
-- [ ] Hypervisor timer: `CNTHP_CTL_EL2` / `CNTHP_TVAL_EL2` setup for a periodic tick
-- [ ] Additional UART drivers: NS16550, DW APB
-
-> GICv3 is the initial target. The driver layer will be abstracted to support GICv2 (older boards) and GICv4 (direct interrupt injection for nested virtualization) without reworking the upper layers.
-
----
-
-## Phase 3 — SMP
+## Phase 2 — SMP
 
 Wake and manage all CPUs. Secondary cores are currently parked indefinitely; this phase brings them into the hypervisor's control.
 
@@ -61,6 +48,19 @@ Wake and manage all CPUs. Secondary cores are currently parked indefinitely; thi
 
 ---
 
+## Phase 3 — Hardware Abstractions
+
+Initialize and manage the hardware the hypervisor depends on before guests can run.
+
+- [ ] GICv3 initialization: distributor (`GICD_CTLR`) and redistributors
+- [ ] GICv3 interrupt routing to EL2
+- [ ] Hypervisor timer: `CNTHP_CTL_EL2` / `CNTHP_TVAL_EL2` setup for a periodic tick
+- [ ] Additional UART drivers: NS16550, DW APB
+
+> GICv3 is the initial target. The driver layer will be abstracted to support GICv2 (older boards) and GICv4 (direct interrupt injection for nested virtualization) without reworking the upper layers.
+
+---
+
 ## Phase 4 — Hypervisor Memory Management
 
 The hypervisor currently runs with the EL2 MMU disabled — no caching, no memory protection, no virtual addressing. This phase enables proper memory management for the hypervisor itself before tackling guest isolation.
@@ -70,6 +70,7 @@ The hypervisor currently runs with the EL2 MMU disabled — no caching, no memor
 - [ ] Enable instruction and data caches
 - [ ] Physical frame allocator over the RAM range discovered from DTB
 - [ ] Hypervisor heap for dynamic allocations (slab or buddy, or a well-tested no_std crate)
+- [ ] PIE (Position Independent Executable): relocator stub or full PIC so the hypervisor can run at any load address without relinking per board
 
 ---
 
