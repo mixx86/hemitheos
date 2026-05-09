@@ -15,13 +15,13 @@ vector_table_el2:
 
     // EL2, SP_EL2 — exceptions taken while running in the hypervisor itself
     .p2align 7
-    b el2_sync_handler
+    b el2_sync_entry
     .p2align 7
-    b .
+    b el2_irq_entry
     .p2align 7
-    b .
+    b el2_fiq_entry
     .p2align 7
-    b .
+    b el2_serror_entry
 
     // Lower EL, AArch64 — exceptions from AArch64 guests (future: trap dispatch)
     .p2align 7

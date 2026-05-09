@@ -31,9 +31,7 @@ Get the hypervisor to boot on the target hardware, establish a working environme
 - [x] CI pipeline: build, host test suite, clippy (cross-target), fmt check
 - [x] Integration tests for `sync::Once` (host-runnable)
 - [X] `log.rs`: ring buffer + fmt::Write; console::puts gated by log level; print!/println! macros
-
-### Pending
-- [ ] Exception vector table: save/restore register frame, structured dispatch to Rust handlers
+- [x] Exception vector table: save/restore register frame, structured dispatch to Rust handlers
 
 ---
 
@@ -45,6 +43,8 @@ Initialize and manage the hardware the hypervisor depends on before guests can r
 - [ ] GICv3 interrupt routing to EL2
 - [ ] Hypervisor timer: `CNTHP_CTL_EL2` / `CNTHP_TVAL_EL2` setup for a periodic tick
 - [ ] Additional UART drivers: NS16550, DW APB
+
+> GICv3 is the initial target. The driver layer will be abstracted to support GICv2 (older boards) and GICv4 (direct interrupt injection for nested virtualization) without reworking the upper layers.
 
 ---
 
@@ -169,5 +169,4 @@ The primary extension: allow multiple machines running hemitheos to form a clust
 
 | Item | Location | Notes |
 |---|---|---|
-| Exception vectors mostly `b .` | `hv/asm/aarch64/vectors.s` | Need save/restore frame and structured dispatch (Phase 1 pending) |
-| Empty `log.rs` | `lib/src/log.rs` | Low-effort, high-value; blocked on nothing (Phase 1 pending) |
+| — | — | No known debt at this time |

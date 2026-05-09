@@ -6,11 +6,13 @@ fn main() {
         "aarch64" => {
             println!("cargo:rerun-if-changed=asm/aarch64/boot.s");
             println!("cargo:rerun-if-changed=asm/aarch64/vectors.s");
+            println!("cargo:rerun-if-changed=asm/aarch64/exception_entry.s");
             println!("cargo:rerun-if-changed=asm/aarch64/linker.ld");
             println!("cargo:rustc-link-arg=-T{manifest_dir}/asm/aarch64/linker.ld");
             cc::Build::new()
                 .file("asm/aarch64/boot.s")
                 .file("asm/aarch64/vectors.s")
+                .file("asm/aarch64/exception_entry.s")
                 .compile("startup");
         }
         // riscv64: reserved for future support, not implemented yet
