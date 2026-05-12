@@ -72,11 +72,9 @@ vector_table_el2:
 // 272 bytes total, 16-byte aligned (required by AArch64 stack discipline).
 .set FRAME_SIZE, 272
 
-// save_exception_frame — build an ExceptionFrame on the current stack.
-//
 // x9, x10, x11 are reused as scratch after their GPR values are in memory.
-// This is safe: the original values are already at sp+72/80/88 when we read
-// the system registers into those same hardware registers.
+// Safe because the originals are already at sp+72/80/88 when we overwrite those
+// registers with system register reads.
 .macro save_exception_frame
     sub  sp,  sp,  #FRAME_SIZE
     stp  x0,  x1,  [sp, #0]
@@ -102,10 +100,8 @@ vector_table_el2:
     str  x11,      [sp, #264]
 .endm
 
-// restore_exception_frame — inverse of save_exception_frame.
-//
-// System registers are written before GPRs so x9/x10 can act as scratch here
-// too, without clobbering the memory values we're about to load back into them.
+// System registers are written before GPRs so x9/x10 can serve as scratch
+// without clobbering the values we are about to load back into them.
 // esr_el2 is read-only; there is nothing to restore.
 .macro restore_exception_frame
     ldp  x9,  x10, [sp, #248]
@@ -132,9 +128,8 @@ vector_table_el2:
 
 // ── Entry stubs ───────────────────────────────────────────────────────────────
 
-// Synchronous exception taken while in EL2 (fault in hypervisor code).
 // The Rust handler panics and never returns; restore + eret are unreachable.
-// They are present so the stack is balanced if the handler is ever changed.
+// Kept for stack symmetry in case the handler is ever changed to return.
 .global el2_sync_entry
 el2_sync_entry:
     save_exception_frame

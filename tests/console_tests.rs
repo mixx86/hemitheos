@@ -11,7 +11,7 @@ fn init_with_none_is_noop() {
 }
 
 #[test]
-#[should_panic(expected = "platform not initialized")]
+#[should_panic(expected = "console not initialized")]
 fn console_before_init_panics() {
     let _ = console::console();
 }

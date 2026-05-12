@@ -1,4 +1,5 @@
 use crate::boot::BootSource;
+use crate::console::ConsoleInfo;
 use crate::sync;
 
 static PLATFORM: sync::Once<PlatformInfo> = sync::Once::new();
@@ -6,10 +7,8 @@ static PLATFORM: sync::Once<PlatformInfo> = sync::Once::new();
 pub const MAX_SMP_CPUS: usize = 8;
 
 pub struct PlatformInfo {
-    pub console: Option<crate::console::ConsoleInfo>,
-
+    pub console: Option<ConsoleInfo>,
     pub num_cpus: usize,
-
     pub ram_base: u64,
     pub ram_size: u64,
 }
@@ -64,9 +63,9 @@ fn try_init_from_dtb(boot_arg: usize) -> Option<PlatformInfo> {
         platform.ram_size += size;
     }
 
-    platform.console = crate::console::find_console(&fdt);
-
-    platform.num_cpus = discover_cpus(&BootSource::Fdt(&fdt));
+    let source = BootSource::Fdt(&fdt);
+    platform.console = crate::console::find_console(&source);
+    platform.num_cpus = discover_cpus(&source);
 
     Some(platform)
 }

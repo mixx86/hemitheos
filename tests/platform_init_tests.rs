@@ -10,21 +10,6 @@ fn aligned_copy(src: &[u8]) -> Vec<u32> {
 }
 
 #[test]
-fn find_console_does_not_panic_on_valid_fdt() {
-    let fdt = fdt::Fdt::new(SAMPLE_FDT).expect("sample fdt must be valid");
-    let result = hemitheos::console::find_console(&fdt);
-
-    if let Some(info) = result {
-        assert_ne!(info.base, 0, "console base must be non-zero");
-        assert!(
-            (1_000_000..=500_000_000).contains(&info.clock_hz),
-            "clock_hz {} is outside the 1 MHz–500 MHz range accepted by the driver",
-            info.clock_hz
-        );
-    }
-}
-
-#[test]
 fn init_with_valid_fdt_returns_sane_platform() {
     let buf = aligned_copy(SAMPLE_FDT);
     hemitheos::platform::init(buf.as_ptr() as usize);
@@ -32,4 +17,13 @@ fn init_with_valid_fdt_returns_sane_platform() {
 
     assert!(p.num_cpus > 0, "platform must have at least one CPU");
     assert!(p.ram_size > 0, "platform must have RAM");
+
+    if let Some(info) = p.console {
+        assert_ne!(info.base, 0, "console base must be non-zero");
+        assert!(
+            (1_000_000..=500_000_000).contains(&info.clock_hz),
+            "clock_hz {} is outside the 1 MHz–500 MHz range",
+            info.clock_hz
+        );
+    }
 }

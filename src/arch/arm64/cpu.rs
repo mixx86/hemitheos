@@ -2,7 +2,9 @@ use crate::boot::BootSource;
 use crate::platform::MAX_SMP_CPUS;
 use crate::sync::Once;
 
-// Aff3[39:32] + Aff2[23:16] + Aff1[15:8] + Aff0[7:0]. Strips RES1, U, MT, and RES0.
+// Strips RES1 (bit 31), U (bit 30), MT (bit 24), and all RES0 bits, leaving only
+// Aff3[39:32], Aff2[23:16], Aff1[15:8], Aff0[7:0] — the fields that uniquely
+// identify a core across all topologies including multi-cluster servers.
 const MPIDR_HWID_MASK: u64 = 0x00_00FF_00FF_FFFF;
 
 struct CpuTable {
@@ -12,12 +14,7 @@ struct CpuTable {
 
 static CPU_TABLE: Once<CpuTable> = Once::new();
 
-fn try_probe_from_dtb(source: &BootSource) -> bool {
-    let fdt = match source {
-        BootSource::Fdt(f) => f,
-        _ => return false,
-    };
-
+fn try_probe_from_fdt(fdt: &fdt::Fdt) -> Option<()> {
     let mut mpidrs = [0u64; MAX_SMP_CPUS];
     let mut count = 0;
 
@@ -27,28 +24,14 @@ fn try_probe_from_dtb(source: &BootSource) -> bool {
     }
 
     if count == 0 {
-        return false;
+        return None;
     }
 
     CPU_TABLE.set(CpuTable { mpidrs, count });
-    true
+    Some(())
 }
 
-fn try_probe_from_acpi(source: &BootSource) -> bool {
-    match source {
-        BootSource::Acpi => todo!("ACPI MADT CPU discovery"),
-        _ => false,
-    }
-}
-
-fn try_probe_from_firmware(source: &BootSource) -> bool {
-    match source {
-        BootSource::Firmware => todo!("proprietary firmware CPU discovery"),
-        _ => false,
-    }
-}
-
-// Guaranteed fallback: at minimum the running core is known.
+// At minimum the running core is always known, even with no external topology source.
 fn try_probe_from_mpidr() -> bool {
     let mut mpidrs = [0u64; MAX_SMP_CPUS];
     mpidrs[0] = current_cpu_mpidr();
@@ -65,35 +48,32 @@ fn fallback_single_cpu() {
 
 fn current_cpu_mpidr() -> u64 {
     let mpidr: u64;
+    // SAFETY: MPIDR_EL1 is always readable from EL2; read-only with no side effects.
     unsafe {
         core::arch::asm!("mrs {}, mpidr_el1", out(reg) mpidr, options(nostack, nomem));
     }
     mpidr & MPIDR_HWID_MASK
 }
 
-// Discovers available CPUs trying each source in order until one succeeds.
 pub fn probe_cpus(source: &BootSource) {
-    if try_probe_from_dtb(source) {
-        return;
+    let found = crate::boot::probe(
+        source,
+        |fdt| try_probe_from_fdt(fdt),
+        || todo!("ACPI MADT CPU discovery"),
+        || todo!("proprietary firmware CPU discovery"),
+    );
+
+    if found.is_none() {
+        if !try_probe_from_mpidr() {
+            fallback_single_cpu();
+        }
     }
-    if try_probe_from_acpi(source) {
-        return;
-    }
-    if try_probe_from_firmware(source) {
-        return;
-    }
-    if try_probe_from_mpidr() {
-        return;
-    }
-    fallback_single_cpu();
 }
 
 pub fn cpu_count() -> usize {
     CPU_TABLE.get().map(|t| t.count).unwrap_or(0)
 }
 
-// Returns the logical index (0..num_cpus) of the calling CPU for use as an array index.
-//
 // Before probe_cpus runs only core 0 is active, so falling back to Aff0 is safe.
 pub fn current_cpu_index() -> usize {
     let mpidr = current_cpu_mpidr();
