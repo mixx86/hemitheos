@@ -57,7 +57,10 @@ fn try_probe_from_mpidr() -> bool {
 }
 
 fn fallback_single_cpu() {
-    CPU_TABLE.set(CpuTable { mpidrs: [0u64; MAX_SMP_CPUS], count: 1 });
+    CPU_TABLE.set(CpuTable {
+        mpidrs: [0u64; MAX_SMP_CPUS],
+        count: 1,
+    });
 }
 
 fn current_cpu_mpidr() -> u64 {
@@ -70,10 +73,18 @@ fn current_cpu_mpidr() -> u64 {
 
 // Discovers available CPUs trying each source in order until one succeeds.
 pub fn probe_cpus(source: &BootSource) {
-    if try_probe_from_dtb(source)      { return; }
-    if try_probe_from_acpi(source)     { return; }
-    if try_probe_from_firmware(source) { return; }
-    if try_probe_from_mpidr()          { return; }
+    if try_probe_from_dtb(source) {
+        return;
+    }
+    if try_probe_from_acpi(source) {
+        return;
+    }
+    if try_probe_from_firmware(source) {
+        return;
+    }
+    if try_probe_from_mpidr() {
+        return;
+    }
     fallback_single_cpu();
 }
 

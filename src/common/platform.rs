@@ -5,7 +5,6 @@ static PLATFORM: sync::Once<PlatformInfo> = sync::Once::new();
 
 pub const MAX_SMP_CPUS: usize = 8;
 
-
 pub struct PlatformInfo {
     pub console: Option<crate::console::ConsoleInfo>,
 
