@@ -52,9 +52,7 @@ fn try_init_from_dtb(boot_arg: usize) -> Option<PlatformInfo> {
 
     let memory = fdt.memory();
     let mut regions = memory.regions().peekable();
-    if regions.peek().is_none() {
-        return None;
-    }
+    regions.peek()?;
 
     for region in regions {
         let base = region.starting_address as u64;
