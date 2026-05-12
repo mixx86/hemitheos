@@ -63,10 +63,8 @@ pub fn probe_cpus(source: &BootSource) {
         || todo!("proprietary firmware CPU discovery"),
     );
 
-    if found.is_none() {
-        if !try_probe_from_mpidr() {
-            fallback_single_cpu();
-        }
+    if found.is_none() && !try_probe_from_mpidr() {
+        fallback_single_cpu();
     }
 }
 

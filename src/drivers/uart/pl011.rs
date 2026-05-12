@@ -17,7 +17,11 @@ pub struct Pl011 {
 
 impl Pl011 {
     pub fn new(base: u64, clock_hz: u32, baud: u32) -> Self {
-        Self { base, clock_hz, baud }
+        Self {
+            base,
+            clock_hz,
+            baud,
+        }
     }
 
     pub fn init(&self) {
@@ -66,7 +70,11 @@ impl crate::console::ConsoleDriver for Pl011 {
 
 static DRIVER: crate::sync::Once<Pl011> = crate::sync::Once::new();
 
-pub fn init(base: u64, clock_hz: u32, baud_rate: u32) -> &'static dyn crate::console::ConsoleDriver {
+pub fn init(
+    base: u64,
+    clock_hz: u32,
+    baud_rate: u32,
+) -> &'static dyn crate::console::ConsoleDriver {
     let pl011 = Pl011::new(base, clock_hz, baud_rate);
     pl011.init();
     DRIVER.set(pl011);
