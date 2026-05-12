@@ -23,7 +23,8 @@ pub extern "C" fn main(boot_arg: usize) -> ! {
 
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
-    log_error!("Panic: {}", info);
+    log_error!("Panic! :(\n");
+    log_error!("{}", info);
 
     loop {
         unsafe {
