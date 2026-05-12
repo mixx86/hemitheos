@@ -82,7 +82,7 @@ const EMPTY: LogBuffer = LogBuffer::new();
 static LOG_BUFFERS: [LogBuffer; platform::MAX_SMP_CPUS] = [EMPTY; platform::MAX_SMP_CPUS];
 
 fn current_log_buffer() -> &'static LogBuffer {
-    let cpu_id = platform::current_cpu_id();
+    let cpu_id = crate::arch::current_cpu_index();
 
     &LOG_BUFFERS[cpu_id]
 }

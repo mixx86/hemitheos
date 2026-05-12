@@ -13,10 +13,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install ARM64 Cross-Compiler
+      - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu
+          sudo apt-get install -y gcc-aarch64-linux-gnu qemu-system-arm
 
       - name: Set up Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1
@@ -30,19 +30,26 @@ jobs:
       - name: Install Rust ARM64 target
         run: rustup target add aarch64-unknown-none
 
-      - name: Build
-        run:  ./scripts/build.sh
+      - name: Build (release)
+        run: ./scripts/build.sh
 
-      - name: Test
-        run: cargo test -p hemitheos --verbose
+      - name: Test (native)
+        run: ./scripts/test.sh --verbose
+
+      - name: QEMU smoke test
+        run: |
+          ./scripts/build.sh --debug
+          timeout 10 ./scripts/qemu-run.sh 2>&1 | tee /tmp/qemu-out.txt || true
+          grep -q "Hemitheos" /tmp/qemu-out.txt \
+            || { echo "ERROR: expected boot output not found"; cat /tmp/qemu-out.txt; exit 1; }
 
       - name: Lint (clippy)
         env:
           TARGET_CC: aarch64-linux-gnu-gcc
-        run: cargo clippy --workspace --target aarch64-unknown-none -- -D warnings
+        run: cargo clippy --features bin-target --target aarch64-unknown-none -- -D warnings
 
       - name: Format check
-        run: cargo fmt -- --check
+        run: cargo fmt --check
 
       - name: Dependency check (cargo-deny)
         uses: EmbarkStudios/cargo-deny-action@v2

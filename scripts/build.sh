@@ -48,7 +48,7 @@ require_cmd "$OBJCOPY"
 
 cargo_profile_args
 
-TARGET_CC="$TARGET_CC" cargo build -p hemitheos-hv --target "$TARGET_TRIPLE" "${CARGO_PROFILE_ARGS[@]}"
+TARGET_CC="$TARGET_CC" cargo build -p hemitheos --features bin-target --target "$TARGET_TRIPLE" "${CARGO_PROFILE_ARGS[@]}"
 
 update_image_paths
 require_file "$IMAGE_ELF"

@@ -1,6 +1,5 @@
 use core::cell::UnsafeCell;
-use core::prelude::v1::*;
-use core::sync::atomic::{AtomicU8, Ordering};
+use core::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 
 const ONCE_UNINIT: u8 = 0;
 const ONCE_WRITING: u8 = 1;
@@ -53,5 +52,27 @@ impl<T> Once<T> {
         } else {
             None
         }
+    }
+}
+
+pub struct SpinLock {
+    locked: AtomicBool,
+}
+
+impl SpinLock {
+    pub fn lock(&self) {
+        while self
+            .locked
+            .compare_exchange_weak(false, true, Ordering::Acquire, Ordering::Relaxed)
+            .is_err()
+        {
+            while self.locked.load(Ordering::Relaxed) {
+                core::hint::spin_loop();
+            }
+        }
+    }
+
+    pub fn unlock(&self) {
+        self.locked.store(false, Ordering::Release);
     }
 }

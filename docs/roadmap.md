@@ -6,49 +6,68 @@ Items within each phase are ordered by dependency where relevant.
 
 ---
 
-## Phase 1 — Bootstrapping *(current)*
+## Phase 1 — Bootstrapping
 
 Get the hypervisor to boot on the target hardware, establish a working environment, and produce observable output.
 
 ### Done
 
-- [x] ARM64 Image header in `boot.s` (Linux ARM64 boot protocol; DTB address passed in `x0`)
+- [x] ARM64 Image header in `boot.s` (Linux ARM64 boot protocol; firmware address passed in `x0`)
 - [x] Multi-CPU primary election via `ldaxr`/`stlxr` atomic flag; secondary cores parked in `wfe` loop
 - [x] EL check at entry; halt if not EL2
 - [x] EL2 environment setup: TLB/icache invalidation, FP trap disable, `HCR_EL2` configuration, timer access enable
 - [x] Stack setup (64 KiB), BSS clear
 - [x] EL2 vector table loaded into `VBAR_EL2`
 - [x] EL2 synchronous exception handler (reads `ESR_EL2`, panics)
-- [x] DTB validation (magic check) and parsing via `fdt` crate
-- [x] `PlatformInfo` extraction: RAM regions, CPU count, GICv3 bases, console
+- [x] Platform info discovery: RAM regions, CPU count, GICv3 bases, console (probe chain: DTB → ACPI → firmware)
 - [x] `ConsoleDriver` trait + global driver registry via `sync::Once`
-- [x] Console discovery from DTB (`/chosen`, `/aliases`, compatible scan)
-- [x] PL011 driver: hardware init, baud rate computed from clock frequency read from DTB
-- [x] DTB clock extraction: direct `clock-frequency` property and phandle resolution (`fixed-clock` provider); covers QEMU virt and most real platforms
+- [x] Console discovery from platform info (`/chosen`, `/aliases`, compatible scan)
+- [x] PL011 driver: hardware init, baud rate computed from clock frequency read from platform info
 - [x] PL011 `puts`: spin on `UARTFR.TXFF`, write to `UARTDR`, drain on `UARTFR.BUSY` before return
 - [x] `console::init` wired in `main` from `PlatformInfo`
 - [x] Driver globals migrated from `static mut` to `sync::Once`
 - [x] CI pipeline: build, host test suite, clippy (cross-target), fmt check
 - [x] Integration tests for `sync::Once` (host-runnable)
-- [X] `log.rs`: ring buffer + fmt::Write; console::puts gated by log level; print!/println! macros
+- [x] `log.rs`: ring buffer + fmt::Write; console::puts gated by log level; print!/println! macros
 - [x] Exception vector table: save/restore register frame, structured dispatch to Rust handlers
 
 ---
 
-## Phase 2 — SMP
+## Phase 2 — Hypervisor Memory Management *(current)*
+
+The hypervisor currently runs with the EL2 MMU disabled — no caching, no memory protection, no virtual addressing. This phase enables the minimum viable memory management before tackling guest isolation.
+
+- [ ] EL2 Stage-1 page tables (`TTBR0_EL2`): map hypervisor code, data, per-CPU stacks, and MMIO regions
+- [ ] Enable EL2 MMU (`SCTLR_EL2.M`) with correct memory attributes and permissions
+- [ ] Enable instruction and data caches
+- [ ] Physical frame allocator over the RAM range discovered at boot
+- [ ] Hypervisor heap for dynamic allocations (slab or buddy, or a well-tested no_std crate)
+- [ ] `Mmio<T>` type: safe MMIO register abstraction with correct volatile semantics and memory barriers
+- [ ] PIE (Position Independent Executable): relocator stub or full PIC so the hypervisor can run at any load address without relinking per board
+
+---
+
+## Phase 3 — SMP
 
 Wake and manage all CPUs. Secondary cores are currently parked indefinitely; this phase brings them into the hypervisor's control.
+
+### Done
+
+- [x] CPU topology discovery: MPIDR-based probe chain (platform info → ACPI → firmware → MPIDR fallback)
+- [x] Logical CPU index mapping: `current_cpu_index()` via MPIDR lookup table
+- [x] Synchronization primitives: `SpinLock`, `Once`
+
+### Pending
 
 - [ ] PSCI `CPU_ON` calls to wake secondary cores (replaces the current spin-table approach)
 - [ ] Per-CPU data structures: dedicated stack, exception stack, per-CPU state block
 - [ ] Per-CPU GIC redistributor initialization
 - [ ] IPI infrastructure via SGIs (Software Generated Interrupts): send, receive, dispatch
-- [ ] Synchronization primitives: spinlocks, memory barriers, atomics
-- [ ] CPU topology validation against DTB (`/cpus` node, core/cluster layout)
+- [ ] CPU topology validation against platform info (`/cpus` node, core/cluster layout)
 
 ---
 
-## Phase 3 — Hardware Abstractions
+## Phase 4 — Hardware Abstractions
 
 Initialize and manage the hardware the hypervisor depends on before guests can run.
 
@@ -58,19 +77,6 @@ Initialize and manage the hardware the hypervisor depends on before guests can r
 - [ ] Additional UART drivers: NS16550, DW APB
 
 > GICv3 is the initial target. The driver layer will be abstracted to support GICv2 (older boards) and GICv4 (direct interrupt injection for nested virtualization) without reworking the upper layers.
-
----
-
-## Phase 4 — Hypervisor Memory Management
-
-The hypervisor currently runs with the EL2 MMU disabled — no caching, no memory protection, no virtual addressing. This phase enables proper memory management for the hypervisor itself before tackling guest isolation.
-
-- [ ] EL2 Stage-1 page tables (`TTBR0_EL2`): map hypervisor code, data, per-CPU stacks, and MMIO regions
-- [ ] Enable EL2 MMU (`SCTLR_EL2.M`) with correct memory attributes and permissions
-- [ ] Enable instruction and data caches
-- [ ] Physical frame allocator over the RAM range discovered from DTB
-- [ ] Hypervisor heap for dynamic allocations (slab or buddy, or a well-tested no_std crate)
-- [ ] PIE (Position Independent Executable): relocator stub or full PIC so the hypervisor can run at any load address without relinking per board
 
 ---
 
@@ -126,12 +132,23 @@ Provide guests with virtual devices backed by hypervisor-controlled resources.
 Validate everything built so far on physical hardware. QEMU brings up early; real hardware surfaces the rest.
 
 - [ ] Physical board bring-up and validation
-- [ ] Device assignment policy (config-based or DTB-overlay)
+- [ ] Device assignment policy (config-based or platform-info overlay)
 - [ ] SMMU: Stage-2 translation for DMA-capable devices
 
 ---
 
-## Phase 10 — Privileged Domain
+## Phase 10 — MMU Optimizations
+
+Improvements to the memory management layer once the basics are proven on real hardware.
+
+- [ ] ASID (Address Space ID) allocation and TLB tagging to avoid full TLB flushes on context switch
+- [ ] Huge page support (2 MiB / 1 GiB blocks) for hypervisor and guest mappings
+- [ ] Lazy allocation: map-on-demand for guest memory regions
+- [ ] TLB shootdown protocol for SMP
+
+---
+
+## Phase 11 — Privileged Domain
 
 Introduce a privileged guest (dom0-equivalent) as the control plane for the hypervisor. The goal is to move management responsibility out of the hypervisor core and into an isolated domain, keeping the core lean.
 
@@ -143,7 +160,7 @@ Introduce a privileged guest (dom0-equivalent) as the control plane for the hype
 
 ---
 
-## Phase 11 — Extension System
+## Phase 12 — Extension System
 
 Allow functionality to be added to the privileged domain via extensions installed at runtime, without touching the hypervisor core.
 
@@ -154,7 +171,7 @@ Allow functionality to be added to the privileged domain via extensions installe
 
 ---
 
-## Phase 12 — Network Orchestration
+## Phase 13 — Network Orchestration
 
 The primary extension: allow multiple machines running hemitheos to form a cluster and be managed as a unit.
 

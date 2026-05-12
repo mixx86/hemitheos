@@ -38,8 +38,8 @@ _start:
     stlxr   w4, w2, [x1]           // store-release exclusive; w4=0 on success
     cbnz    w4, .Lclaim            // lost exclusive monitor — retry
 
-    // Save DTB address (passed in x0) before stack/BSS setup
-    mov     x20, x0                // preserve DTB (x20 is callee-saved ABI register)
+    // Save firmware boot argument (passed in x0) before stack/BSS setup
+    mov     x20, x0                // preserve boot_arg (x20 is callee-saved ABI register)
 
     mrs     x0, CurrentEL
     lsr     x0, x0, #2

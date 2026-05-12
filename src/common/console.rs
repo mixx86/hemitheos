@@ -15,6 +15,7 @@ pub trait ConsoleDriver: Sync {
 
 static CONSOLE: sync::Once<&'static dyn ConsoleDriver> = sync::Once::new();
 
+#[derive(Copy, Clone)]
 pub struct ConsoleInfo {
     pub kind: ConsoleType,
     pub base: u64,
