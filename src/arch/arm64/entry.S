@@ -1,6 +1,10 @@
-// Exception entry/exit stubs for EL2.
+// EL2 exception vector table and entry/exit stubs.
 //
-// Each active exception class gets a thin assembly wrapper that:
+// Layout follows the ARMv8-A exception model: four groups of four vectors,
+// each 128 bytes apart, 2 KiB-aligned. Only the EL2/SP_EL2 group is active;
+// all other entries halt with `b .` until the corresponding phase implements them.
+//
+// Each active vector branches to an entry stub that:
 //   1. Saves the complete register state to the stack (ExceptionFrame)
 //   2. Calls the Rust handler via bl
 //   3. Restores state and issues eret
@@ -8,14 +12,55 @@
 // The eret lives here, never inside a Rust handler. Putting it in Rust means
 // the compiler's function epilogue (ldp x29, x30 / ret) runs after eret fires,
 // corrupting the stack pointer with a phantom frame.
-//
-// This file is coupled to vectors.s: every label exported here must match a
-// branch target there. The split is intentional — vectors.s stays declarative,
-// this file handles the mechanics.
 
 .section .text.exception, "ax"
 
-// ExceptionFrame layout — offsets must match the Rust struct in exceptions.rs.
+// ── Vector table ─────────────────────────────────────────────────────────────
+
+.global vector_table_el2
+.p2align 11
+vector_table_el2:
+    // EL2, SP_EL0 — unused; the hypervisor never switches to the task stack pointer
+    .p2align 7
+    b .
+    .p2align 7
+    b .
+    .p2align 7
+    b .
+    .p2align 7
+    b .
+
+    // EL2, SP_EL2 — exceptions taken while running in the hypervisor itself
+    .p2align 7
+    b el2_sync_entry
+    .p2align 7
+    b el2_irq_entry
+    .p2align 7
+    b el2_fiq_entry
+    .p2align 7
+    b el2_serror_entry
+
+    // Lower EL, AArch64 — exceptions from AArch64 guests (future: trap dispatch)
+    .p2align 7
+    b .
+    .p2align 7
+    b .
+    .p2align 7
+    b .
+    .p2align 7
+    b .
+
+    // Lower EL, AArch32 — AArch32 guests not supported
+    .p2align 7
+    b .
+    .p2align 7
+    b .
+    .p2align 7
+    b .
+    .p2align 7
+    b .
+
+// ── ExceptionFrame ────────────────────────────────────────────────────────────
 //
 //   Offset  Content
 //   0       x0  .. x29  (consecutive pairs, 8 bytes each)
@@ -84,6 +129,8 @@
     ldp  x0,  x1,  [sp, #0]
     add  sp,  sp,  #FRAME_SIZE
 .endm
+
+// ── Entry stubs ───────────────────────────────────────────────────────────────
 
 // Synchronous exception taken while in EL2 (fault in hypervisor code).
 // The Rust handler panics and never returns; restore + eret are unreachable.

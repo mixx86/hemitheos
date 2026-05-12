@@ -12,15 +12,13 @@ fn main() {
 
     match arch.as_str() {
         "aarch64" => {
-            println!("cargo:rerun-if-changed=src/arch/arm64/boot.s");
-            println!("cargo:rerun-if-changed=src/arch/arm64/vectors.s");
-            println!("cargo:rerun-if-changed=src/arch/arm64/exception_entry.s");
-            println!("cargo:rerun-if-changed=src/arch/arm64/linker.ld");
-            println!("cargo:rustc-link-arg=-T{manifest_dir}/src/arch/arm64/linker.ld");
+            println!("cargo:rerun-if-changed=src/arch/arm64/head.S");
+            println!("cargo:rerun-if-changed=src/arch/arm64/entry.S");
+            println!("cargo:rerun-if-changed=src/arch/arm64/hemitheos.lds.S");
+            println!("cargo:rustc-link-arg=-T{manifest_dir}/src/arch/arm64/hemitheos.lds.S");
             cc::Build::new()
-                .file("src/arch/arm64/boot.s")
-                .file("src/arch/arm64/vectors.s")
-                .file("src/arch/arm64/exception_entry.s")
+                .file("src/arch/arm64/head.S")
+                .file("src/arch/arm64/entry.S")
                 .compile("startup");
         }
         // riscv64: reserved for future support, not implemented yet
