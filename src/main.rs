@@ -1,7 +1,7 @@
 #![no_std]
 #![no_main]
 
-use hemitheos::{console, log_debug, log_error, platform};
+use hemitheos::{console, log_error, log_info, platform};
 
 use core::panic::PanicInfo;
 
@@ -9,7 +9,7 @@ use core::panic::PanicInfo;
 pub extern "C" fn main(boot_arg: usize) -> ! {
     platform::init(boot_arg);
     console::init(platform::platform().console);
-    log_debug!("Hemitheos\n");
+    log_info!("Hemitheos\n");
 
     loop {
         unsafe {

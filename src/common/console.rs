@@ -130,7 +130,8 @@ pub fn find_console(fdt: &fdt::Fdt) -> Option<ConsoleInfo> {
             if let Some(prop) = chosen.property(prop_name)
                 && let Ok(path) = core::str::from_utf8(prop.value)
             {
-                let node_path = path.trim_end_matches('\0');
+                // Strip null terminator and any Linux console options (e.g. ":115200n8").
+                let node_path = path.trim_end_matches('\0').split(':').next().unwrap_or("");
                 if let Some(node) = fdt.find_node(node_path)
                     && let Some(console) = node_to_uart_info(node)
                 {
@@ -145,7 +146,8 @@ pub fn find_console(fdt: &fdt::Fdt) -> Option<ConsoleInfo> {
             if let Some(prop) = aliases.property(alias)
                 && let Ok(path) = core::str::from_utf8(prop.value)
             {
-                let node_path = path.trim_end_matches('\0');
+                // Strip null terminator and any Linux console options (e.g. ":115200n8").
+                let node_path = path.trim_end_matches('\0').split(':').next().unwrap_or("");
                 if let Some(node) = fdt.find_node(node_path)
                     && let Some(uart) = node_to_uart_info(node)
                 {

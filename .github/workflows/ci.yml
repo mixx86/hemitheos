@@ -38,7 +38,6 @@ jobs:
 
       - name: QEMU smoke test
         run: |
-          ./scripts/build.sh --debug
           timeout 10 ./scripts/qemu-run.sh 2>&1 | tee /tmp/qemu-out.txt || true
           grep -q "Hemitheos" /tmp/qemu-out.txt \
             || { echo "ERROR: expected boot output not found"; cat /tmp/qemu-out.txt; exit 1; }
