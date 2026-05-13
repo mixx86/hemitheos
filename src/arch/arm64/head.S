@@ -9,9 +9,10 @@ _boot_cpu_online:
 .global _img_start
 .global _start
 
-// ARM64 Image header (boot protocol)
+// ARM64 Image header — required by the Linux ARM64 boot protocol.
+// Bootloaders read text_offset and image_size from this header to place the image correctly.
 _img_start:
-    b       _start          // skip image header
+    b       _start
     .word   0               // code1
     .quad   0x80000         // text_offset: load at RAM_BASE + 0x80000
     .quad   0               // image_size: 0 = use file size
@@ -25,26 +26,26 @@ _img_start:
 _start:
     msr DAIFSet, #0xf
 
-    // Elect the primary CPU via atomic exchange.
     // The first CPU to claim _boot_cpu_online proceeds; all others are parked.
-    // This is topology-agnostic: works regardless of MPIDR values, big.LITTLE,
-    // or cluster layout. On PSCI systems secondaries never reach here anyway.
+    // Topology-agnostic: works regardless of MPIDR values, big.LITTLE, or cluster layout.
+    // On PSCI systems secondaries never reach here anyway.
     adrp    x1, _boot_cpu_online
     add     x1, x1, :lo12:_boot_cpu_online
     mov     w2, #1
 .Lclaim:
-    ldaxr   w3, [x1]               // load-acquire exclusive
+    ldaxr   w3, [x1]
     cbnz    w3, secondary_halt     // already claimed — we are secondary
-    stlxr   w4, w2, [x1]           // store-release exclusive; w4=0 on success
+    stlxr   w4, w2, [x1]           // w4=0 on success
     cbnz    w4, .Lclaim            // lost exclusive monitor — retry
 
-    // Save DTB address (passed in x0) before stack/BSS setup
-    mov     x20, x0                // preserve DTB (x20 is callee-saved ABI register)
+    // Preserve boot_arg (x0) before stack and BSS setup clobber caller-saved registers.
+    // x20 is callee-saved so it survives the bl to main.
+    mov     x20, x0
 
     mrs     x0, CurrentEL
     lsr     x0, x0, #2
     and     x0, x0, #3
- 
+
     cmp     x0, #2
     b.eq    el2_entry
 
@@ -53,7 +54,6 @@ _start:
 el2_entry:
     msr     SPSel, #1
 
-    // Invalidate stale TLB entries and instruction cache.
     // Necessary on real hardware after warm reset or hand-off from prior firmware.
     tlbi    alle2
     dsb     sy
@@ -62,12 +62,11 @@ el2_entry:
     dsb     sy
     isb
 
-    // Disable FP/SIMD/SVE/SME trapping to EL2.
-    // Reset value has TFP=1; any FP instruction from Rust would fault without this.
+    // Reset value has CPTR_EL2.TFP=1; any FP instruction from Rust would fault without this.
     msr     cptr_el2, xzr
     isb
 
-    // Configure HCR_EL2:
+    // HCR_EL2 configuration:
     //   RW   (bit 31) — EL1 runs in AArch64, not AArch32
     //   AMO  (bit  5) — route physical SError to EL2
     //   IMO  (bit  4) — route physical IRQ to EL2
@@ -77,8 +76,7 @@ el2_entry:
     msr     hcr_el2, x0
     isb
 
-    // Allow EL1 to access the physical timer counter and control registers
-    // without trapping to EL2 (required by any future guest OS).
+    // Required by any future guest OS that accesses the physical timer directly.
     mov     x0, #3
     msr     cnthctl_el2, x0
     isb
@@ -113,12 +111,11 @@ clear_bss_done:
     mov     x0, x20
     bl      main
 
-// park secondary cores indefinitely
 secondary_halt:
     wfe
     b       secondary_halt
 
-// unsupported exception level (should never happen)
+// Should never be reached; EL check at entry ensures we only run at EL2.
 unsupported_el:
     wfe
     b       unsupported_el

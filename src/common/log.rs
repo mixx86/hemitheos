@@ -25,6 +25,8 @@ pub struct LogBuffer {
     tail: AtomicUsize,
 }
 
+// SAFETY: access to `buf` is serialised by the single-CPU invariant that holds
+// until SMP is brought up; each CPU indexes its own buffer via current_cpu_index().
 unsafe impl Sync for LogBuffer {}
 
 impl LogBuffer {
@@ -46,6 +48,8 @@ impl LogBuffer {
                 head = (head + 1) % LOG_BUF_SIZE;
                 self.head.store(head, Ordering::Relaxed);
             }
+            // SAFETY: tail is always within bounds (enforced by the modulo above);
+            // exclusive write access is guaranteed by the single-CPU invariant.
             unsafe {
                 (*buf)[tail] = b;
             }
@@ -57,6 +61,8 @@ impl LogBuffer {
     pub fn read(&self, out: &mut [u8]) -> usize {
         let mut head = self.head.load(Ordering::Acquire);
         let tail = self.tail.load(Ordering::Acquire);
+        // SAFETY: no concurrent writers can observe the same indices due to the
+        // Acquire load of tail above; we only read positions already released by write().
         let buf = unsafe { &*self.buf.get() };
         let mut count = 0;
 
@@ -82,8 +88,7 @@ const EMPTY: LogBuffer = LogBuffer::new();
 static LOG_BUFFERS: [LogBuffer; platform::MAX_SMP_CPUS] = [EMPTY; platform::MAX_SMP_CPUS];
 
 fn current_log_buffer() -> &'static LogBuffer {
-    let cpu_id = platform::current_cpu_id();
-
+    let cpu_id = crate::arch::current_cpu_index();
     &LOG_BUFFERS[cpu_id]
 }
 

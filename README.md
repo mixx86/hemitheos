@@ -18,9 +18,11 @@ The project is ARM-first. AArch64 is the primary target and will remain so until
 
 ## Current Status
 
-**Phase 1 — Bootstrapping** (in progress)
+**Phase 1 — Bootstrapping** ✓ complete
 
-The hypervisor can boot, initialize the hardware environment, parse platform topology from the Device Tree Blob (DTB), and set up early UART output. There is no VM lifecycle yet — Stage-2 MMU, interrupt virtualization, and vCPU management have not been started.
+**Phase 2 — Hypervisor Memory Management** (in progress)
+
+The hypervisor boots on QEMU and real AArch64 hardware, initializes the hardware environment, discovers platform topology (boot source: DTB, ACPI, or firmware), sets up early UART output with dynamic baud rate, and parks secondary cores. There is no VM lifecycle yet — Stage-2 MMU, interrupt virtualization, and vCPU management have not been started.
 
 See [`docs/roadmap.md`](docs/roadmap.md) for the full plan.
 
@@ -29,65 +31,80 @@ See [`docs/roadmap.md`](docs/roadmap.md) for the full plan.
 ## Repository Layout
 
 ```
-hv/                 Binary crate — boot entry, main, exception handlers
-  src/main.rs       Hypervisor entry point
-  src/arch/         Architecture-specific exception handlers
-  asm/aarch64/      Boot assembly, vector table, linker script
-  build.rs          Assembles asm/ via the cc crate
+src/
+  main.rs             Binary entry point (gated by --features bin-target)
+  lib.rs              Crate root
+  arch/
+    mod.rs            Arch dispatch stubs (host compilation)
+    arm64/            AArch64-specific code
+      head.S          Boot entry point (ARM64 Image protocol)
+      entry.S         EL2 vector table and exception entry stubs
+      hemitheos.lds.S Linker script
+      cpu.rs          CPU topology discovery (MPIDR, probe chain)
+      traps.rs        EL2 exception handlers
+      bringup.rs      Hardware bringup orchestration (Phase 2+)
+      gic.rs          GIC driver (Phase 3+)
+      timer.rs        Timer driver (Phase 3+)
+  boot.rs             BootSource enum and probe/detect dispatch
+  common/
+    platform.rs       Platform init — memory, CPUs, console
+    console.rs        ConsoleDriver trait, discovery, global registry
+    log.rs            Ring-buffer logging with per-CPU buffers
+    sync.rs           Once<T> and SpinLock primitives
+  drivers/
+    uart/pl011.rs     PL011 UART driver
 
-lib/                Library crate — all reusable, host-testable logic
-  src/platform.rs   DTB parsing → PlatformInfo (RAM, CPUs, GIC, console)
-  src/console.rs    ConsoleDriver trait, global registry, DTB discovery
-  src/drivers/      Hardware drivers (uart/pl011.rs)
-  src/sync.rs       Once<T> — safe one-time global initialization
-  tests/            Integration tests (run on host with cargo test)
-
-scripts/            Build, check, QEMU, and GDB helper scripts
-docs/               Architecture, assumptions, and roadmap
+build.rs              Assembles src/arch/arm64/ ASM via cc crate
+scripts/              Build, test, QEMU, and GDB helper scripts
+tests/                Integration tests (host-runnable)
+docs/                 Architecture, assumptions, and roadmap
 ```
 
 ---
 
 ## Build, Emulation & Debug
 
-All scripts accept `--target <arch>` to select the target architecture and `--help` to show usage. The `TARGET_TRIPLE` env var is also supported and is overridden by `--target`. Default target is `aarch64`.
+All scripts accept `--target <arch>` and `--help`. Default target is `aarch64`.
 
 ```bash
 # Check that all required tools are present
-bash scripts/doctor.sh [--target aarch64]
-
-# Run formatter + clippy for the target
-bash scripts/check.sh [--target aarch64]
+bash scripts/doctor.sh
 
 # Build the hypervisor image
-bash scripts/build.sh [--target aarch64]
+bash scripts/build.sh
+
+# Run host integration tests
+bash scripts/test.sh
 
 # QEMU bring-up — serial output on stdout
-bash scripts/qemu-run.sh [--target aarch64]
+bash scripts/qemu-run.sh
 
 # QEMU with trace flags; output written to qemu.log
-bash scripts/qemu-trace.sh [--target aarch64]
+bash scripts/qemu-trace.sh
 
 # Start QEMU paused with a GDB stub on :1234
-bash scripts/qemu-gdb.sh [--target aarch64]
+bash scripts/qemu-gdb.sh
 
-# Connect GDB to a paused QEMU instance (run in a second terminal)
-bash scripts/gdb.sh [--target aarch64]
+# Connect GDB to a paused QEMU instance
+bash scripts/gdb.sh
+
+# Run formatter + clippy
+bash scripts/check.sh
 ```
 
-The QEMU binary, machine, and CPU are derived automatically from the target. They can be overridden via `QEMU_BIN`, `QEMU_MACHINE`, and `QEMU_CPU`. The QEMU scripts are bring-up aids scoped to the `virt` machine; they are not a statement about the supported deployment targets.
+The QEMU binary, machine, and CPU are derived from the target architecture and can be overridden via `QEMU_BIN`, `QEMU_MACHINE`, and `QEMU_CPU`.
 
 ---
 
 ## Testing
 
-The library crate has a host-runnable integration test suite covering `sync::Once`:
+Integration tests run natively on the host (no cross-compilation needed):
 
 ```bash
-cargo test -p hemitheos
+bash scripts/test.sh
 ```
 
-The binary crate (`hv/`) targets AArch64 bare-metal and cannot be tested on the host. End-to-end validation runs via QEMU (`scripts/qemu-run.sh`).
+The binary target (`src/main.rs`) requires the `bin-target` feature and the AArch64 toolchain; it is excluded from host test compilation automatically. End-to-end validation runs via QEMU (`scripts/qemu-run.sh`).
 
 ---
 

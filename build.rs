@@ -1,16 +1,24 @@
 fn main() {
+    println!("cargo::rustc-check-cfg=cfg(has_arch_impl)");
+
     let arch = std::env::var("CARGO_CFG_TARGET_ARCH").unwrap();
     let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
 
+    if matches!(arch.as_str(), "aarch64" | "riscv64") {
+        println!("cargo:rustc-cfg=has_arch_impl");
+    }
+
+    println!("cargo:rerun-if-env-changed=CARGO_CFG_TARGET_ARCH");
+
     match arch.as_str() {
         "aarch64" => {
-            println!("cargo:rerun-if-changed=asm/aarch64/boot.s");
-            println!("cargo:rerun-if-changed=asm/aarch64/vectors.s");
-            println!("cargo:rerun-if-changed=asm/aarch64/linker.ld");
-            println!("cargo:rustc-link-arg=-T{manifest_dir}/asm/aarch64/linker.ld");
+            println!("cargo:rerun-if-changed=src/arch/arm64/head.S");
+            println!("cargo:rerun-if-changed=src/arch/arm64/entry.S");
+            println!("cargo:rerun-if-changed=src/arch/arm64/hemitheos.lds.S");
+            println!("cargo:rustc-link-arg=-T{manifest_dir}/src/arch/arm64/hemitheos.lds.S");
             cc::Build::new()
-                .file("asm/aarch64/boot.s")
-                .file("asm/aarch64/vectors.s")
+                .file("src/arch/arm64/head.S")
+                .file("src/arch/arm64/entry.S")
                 .compile("startup");
         }
         // riscv64: reserved for future support, not implemented yet
