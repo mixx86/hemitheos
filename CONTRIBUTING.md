@@ -1,110 +1,33 @@
 # Contributing
 
-## Architecture Support
+Early-stage project: **AArch64** is the only target that is built and tested in CI. Scripts accept `--target aarch64` (default) and `--help`.
 
-AArch64 is the primary and only implemented target. The build infrastructure is structured to support additional architectures in the future: toolchain, linker script, QEMU binary, and GDB architecture are all derived automatically from `--target`.
+## Branches
 
-To add support for a new architecture the following pieces are needed:
+- **`main`** — last known-good bring-up (what most people should clone).
+- **`dev`** — active work in progress; may not build or boot.
 
-| What | Where |
-|---|---|
-| Boot entry + linker script | `hv/asm/<arch>/` |
-| Arch exception handlers | `hv/src/arch/<arch>/mod.rs`, gated with `#[cfg(target_arch = "...")]` |
-| ASM compilation + linker flag | `hv/build.rs` — add a new `match` arm |
-| Toolchain defaults | `scripts/common.sh` — extend the `case "$TARGET_ARCH"` block |
-| QEMU defaults | `scripts/qemu-common.sh` — extend the `case "$TARGET_ARCH"` block |
-| Short name alias | All scripts — extend the `--target` `case` block |
-| Arch-conditional platform fields | `lib/src/platform.rs` — `PlatformInfo` and `parse_dtb` |
+Use PRs into `main` when something is self-contained and QEMU-clean. Large WIP can stay on `dev`.
 
-Open an issue before starting a port so scope and readiness can be discussed.
-
----
-
-## Development Environment
-
-The build system derives the cross-compilation toolchain, linker script, and QEMU binary automatically from the target. All scripts accept `--target <arch>` (short name or full triple) and `--help`.
-
-### Required Tools — AArch64 (current target)
-
-| Tool | Notes |
-|---|---|
-| Rust target `aarch64-unknown-none` | `rustup target add aarch64-unknown-none` |
-| `aarch64-linux-gnu-gcc` | AArch64 cross-compiler; available in most distro package managers |
-| `aarch64-linux-gnu-objcopy` | Usually part of the same `binutils` cross package |
-| `qemu-system-aarch64` *(optional)* | For emulation bring-up |
-| `gdb-multiarch` *(optional)* | For source-level debugging |
-
-Run `bash scripts/doctor.sh` to verify what is and isn't present.
+## Before you send a PR
 
 ```bash
-bash scripts/doctor.sh --target aarch64   # verify prerequisites
-bash scripts/check.sh  --target aarch64   # formatter + clippy
-bash scripts/build.sh  --target aarch64   # compile and strip to raw binary
+bash scripts/doctor.sh
+bash scripts/check.sh      # rustfmt + clippy
+bash scripts/test.sh       # host tests (library + integration)
+bash scripts/build.sh      # bare-metal image (needs bin-target toolchain)
 ```
 
-The build compiles assembly via the `cc` crate, links with the target-specific linker script under `hv/asm/<arch>/`, and strips the ELF to a raw binary. The following variables can be overridden via env or derived automatically from the target:
+Optional: `bash scripts/qemu-run.sh` for a quick boot check.
 
-| Variable | Default (AArch64) | Purpose |
-|---|---|---|
-| `TARGET_TRIPLE` | `aarch64-unknown-none` | Rust target triple |
-| `TARGET_CC` | `aarch64-linux-gnu-gcc` | C cross-compiler (assembles `.s` files) |
-| `OBJCOPY` | `aarch64-linux-gnu-objcopy` | Strips ELF to raw binary |
-| `PROFILE` | `release` | Cargo profile |
+Open an issue before a **new architecture port** or a large refactor; the tree is still moving.
 
-### QEMU Bring-Up
+## Layout (high level)
 
-```bash
-bash scripts/qemu-run.sh   [--target aarch64]  # serial output on stdout
-bash scripts/qemu-trace.sh [--target aarch64]  # trace flags; output → qemu.log
-bash scripts/qemu-gdb.sh   [--target aarch64]  # start paused, GDB stub on :1234
-bash scripts/gdb.sh        [--target aarch64]  # connect GDB (second terminal)
-```
+Single crate: Rust under `src/`, boot/linker/asm under `src/arch/arm/`, assembly build in `build.rs`, helpers in `scripts/`. Exact module boundaries change — follow what is already there rather than this list.
 
-The QEMU binary, machine, and CPU are derived from the target automatically. They can be overridden via `QEMU_BIN`, `QEMU_MACHINE`, and `QEMU_CPU`. The GDB architecture is also set automatically. The `qemu-*` scripts are scoped to the `virt` machine; they are bring-up aids, not the boundary of supported deployment targets.
+## Code style
 
-### Testing
-
-The library crate is host-testable:
-
-```bash
-cargo test -p hemitheos
-```
-
-The binary crate (`hv/`) targets AArch64 bare-metal only and is validated via QEMU.
-
----
-
-## Project Layout
-
-```
-hv/src/main.rs              Hypervisor entry point and panic handler
-hv/src/arch/<arch>/         Exception handlers, gated with #[cfg(target_arch)]
-hv/asm/<arch>/              Boot assembly, EL2 vector table, linker script
-hv/build.rs                 Compiles asm/ via cc crate, sets linker script
-
-lib/src/platform.rs         DTB parsing → PlatformInfo (RAM, CPUs, GIC, console)
-lib/src/console.rs          ConsoleDriver trait, global registry, DTB console discovery
-lib/src/drivers/uart/       One file per UART hardware variant
-lib/src/sync.rs             Once<T> — safe one-time global initialization
-lib/src/log.rs              Hypervisor logging (stub — contributions welcome)
-lib/tests/                  Host-runnable integration tests
-```
-
----
-
-## Code Style
-
-- `no_std` everywhere; never pull in `std`
-- No heap allocations until an allocator is explicitly introduced
-- `unsafe` blocks must have a `// SAFETY:` comment explaining the invariant being upheld
-- No comments that describe *what* the code does — only *why* when it is non-obvious
-- Architecture-specific code lives under `hv/src/arch/<arch>/` and `hv/asm/<arch>/`, gated with `#[cfg(target_arch = "...")]`
-- New hardware drivers go under `lib/src/drivers/<subsystem>/<variant>.rs` and expose an `init(base: u64, ...) -> &'static dyn <Trait>` function
-
----
-
-## Commit Messages
-
-- Imperative mood, present tense: `add PL011 baud rate calculation`, not `added` or `adds`
-- Reference the subsystem in the subject when relevant: `uart: wire init in main`
-- Keep the subject under 72 characters
+- `no_std`; no heap until the project adds an allocator
+- Every `unsafe` block needs a `// SAFETY:` line explaining the invariant
+- Commit subjects: imperative, present tense, ~72 characters or less (`mmu: enable EL2 stage-1 boot tables`)
