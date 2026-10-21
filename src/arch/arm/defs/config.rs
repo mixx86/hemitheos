@@ -1,0 +1,7 @@
+use crate::defs::macros::*;
+
+pub const HEMITHEOS_VIRT_START: u64 = 0x0000400000000000;
+pub const HEMITHEOS_VIRT_SIZE: u64 = MB(2);
+
+pub const GAP_SIZE: u64 = MB(2);
+pub const BOOT_FDT_VIRT_START: u64 = (HEMITHEOS_VIRT_START + HEMITHEOS_VIRT_SIZE + GAP_SIZE);

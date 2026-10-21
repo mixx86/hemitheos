@@ -115,6 +115,8 @@ fn find_console_in_fdt(fdt: &fdt::Fdt) -> Option<ConsoleInfo> {
             .and_then(|p| read_be_u32(p.value))
             .unwrap_or(0);
 
+        // Add MMMIO MAP
+
         Some(ConsoleInfo {
             kind,
             base: reg.starting_address as u64,

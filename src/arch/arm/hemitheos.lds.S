@@ -1,8 +1,13 @@
-ENTRY(_start)
+ENTRY(start)
+
+#include <asm/config.h>
+#include <macros.h>
+
 
 SECTIONS
 {
-    . = 0x40080000;
+    . = HEMITHEOS_VIRT_START;
+    _start = .;
 
     .text.boot : ALIGN(16) {
         KEEP(*(.text.boot))
@@ -28,6 +33,17 @@ SECTIONS
         __bss_start = .;
         *(.bss .bss.*)
         *(COMMON)
+        . = ALIGN(4096);
+        boot_pgtable = .;
+        . += 0x1000;
+        boot_first = .;
+        . += 0x1000;
+        boot_second = .;
+        . += 0x1000;
+        boot_third = .;
+        . += 0x1000;
+        boot_second_id = .;
+        . += 0x1000;
         __bss_end = .;
     }
 
@@ -35,6 +51,10 @@ SECTIONS
     __hypervisor_end = .;
 
     . = ALIGN(16);
-    . += 0x10000; /* 64 KiB stack */
-    stack_top = .;
+    . += 0x10000;
+    stack_top = .; 
+    _end = .;
 }
+
+ASSERT((_end - _start) <= HEMITHEOS_VIRT_SIZE, "Hemitheos is too big")
+

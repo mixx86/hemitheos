@@ -42,6 +42,10 @@ while [[ $# -gt 0 ]]; do
     shift
 done
 
+# Debug under GDB against the unstripped debug build; default to the dev
+# profile (target/<triple>/debug/) unless the caller overrides PROFILE.
+PROFILE="${PROFILE:-dev}"
+
 source "$SCRIPT_DIR/qemu-common.sh"
 
 require_cmd "$QEMU_BIN"

@@ -13,13 +13,13 @@
 // the compiler's function epilogue (ldp x29, x30 / ret) runs after eret fires,
 // corrupting the stack pointer with a phantom frame.
 
+#include <linkage.h>
+
 .section .text.exception, "ax"
 
 // ── Vector table ─────────────────────────────────────────────────────────────
 
-.global vector_table_el2
-.p2align 11
-vector_table_el2:
+LABEL(vector_table_el2, 2048)
     // EL2, SP_EL0 — unused; the hypervisor never switches to the task stack pointer
     .p2align 7
     b .
@@ -130,35 +130,35 @@ vector_table_el2:
 
 // The Rust handler panics and never returns; restore + eret are unreachable.
 // Kept for stack symmetry in case the handler is ever changed to return.
-.global el2_sync_entry
-el2_sync_entry:
+FUNC(el2_sync_entry)
     save_exception_frame
     bl   EL2_Sync_Handler
     restore_exception_frame
     eret
+END(el2_sync_entry)
 
 // IRQ from EL2. No GIC configured yet; any delivery at this stage is spurious.
-.global el2_irq_entry
-el2_irq_entry:
+FUNC(el2_irq_entry)
     save_exception_frame
     bl   EL2_IRQ_Handler
     restore_exception_frame
     eret
+END(el2_irq_entry)
 
 // FIQ from EL2. On most platforms FIQs are routed to EL3 and should not
 // reach EL2 before a GIC handoff; treat as spurious for now.
-.global el2_fiq_entry
-el2_fiq_entry:
+FUNC(el2_fiq_entry)
     save_exception_frame
     bl   EL2_FIQ_Handler
     restore_exception_frame
     eret
+END(el2_fiq_entry)
 
 // SError (asynchronous abort — bus error, ECC fault, uncorrectable memory).
 // Not recoverable; the Rust handler panics.
-.global el2_serror_entry
-el2_serror_entry:
+FUNC(el2_serror_entry)
     save_exception_frame
     bl   EL2_SError_Handler
     restore_exception_frame
     eret
+END(el2_serror_entry)

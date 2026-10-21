@@ -2,8 +2,8 @@
 #![no_main]
 
 use hemitheos::{console, log_error, log_info, platform};
-
 use core::panic::PanicInfo;
+use core::arch::asm;
 
 #[unsafe(no_mangle)]
 pub extern "C" fn main(boot_arg: usize) -> ! {
@@ -29,9 +29,9 @@ fn panic(info: &PanicInfo) -> ! {
     loop {
         unsafe {
             #[cfg(target_arch = "aarch64")]
-            core::arch::asm!("wfe", options(nostack, nomem));
+            asm!("wfe", options(nostack, nomem));
             #[cfg(target_arch = "riscv64")]
-            core::arch::asm!("wfi", options(nostack, nomem));
+            asm!("wfi", options(nostack, nomem));
         }
     }
 }

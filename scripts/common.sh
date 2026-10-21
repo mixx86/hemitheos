@@ -30,12 +30,13 @@ case "$TARGET_ARCH" in
 aarch64)
   TARGET_CC="${TARGET_CC:-aarch64-linux-gnu-gcc}"
   OBJCOPY="${OBJCOPY:-aarch64-linux-gnu-objcopy}"
-  GDB_BIN="${GDB_BIN:-gdb-multiarch}"
+  # TODO: Set check for gdb-multiarch for other distros
+  GDB_BIN="${GDB_BIN:-gdb}"
   ;;
 riscv64)
   TARGET_CC="${TARGET_CC:-riscv64-linux-gnu-gcc}"
   OBJCOPY="${OBJCOPY:-riscv64-linux-gnu-objcopy}"
-  GDB_BIN="${GDB_BIN:-gdb-multiarch}"
+  GDB_BIN="${GDB_BIN:-gdb}"
   ;;
 *)
   die "unsupported target architecture: $TARGET_ARCH"

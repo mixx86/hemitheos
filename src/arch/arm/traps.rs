@@ -25,7 +25,7 @@ pub extern "C" fn EL2_Sync_Handler() {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn EL2_IRQ_Handler() {
-    // Spurious: no GIC initialized yet. Will become the IRQ dispatch point in Phase 3.
+    // Spurious: no GIC initialized yet. Will become the IRQ dispatch point in Phase 4.
     crate::log_warn!("Spurious IRQ at EL2 — no GIC initialized");
 }
 
