@@ -34,6 +34,55 @@ pub const SECOND_ORDER: u64 = PT_LEVEL_ORDER(2);
 
 pub const FIRST_ORDER: u64 = PT_LEVEL_ORDER(1);
 
+pub const PT_ENTRIES: usize = 1 << PT_INDEX_BITS;
+
+pub const MT_DEVICE_nGnRnE: u32 = 0x0;
+pub const MT_NORMAL_NC: u32 = 0x1;
+pub const MT_NORMAL_WT: u32 = 0x2;
+pub const MT_NORMAL_WB: u32 = 0x3;
+pub const MT_DEVICE_nGnRE: u32 = 0x4;
+pub const MT_NORMAL: u32 = 0x7;
+
+/* Physical address width supported by the page-table code */
+pub const PADDR_BITS: u64 = 48;
+pub const PADDR_MASK: u64 = (1 << PADDR_BITS) - 1;
+
+/*
+ * VMSAv8-64 stage-1 descriptor bits (4KB granule).
+ *
+ * [0]     Valid
+ * [1]     Table (lvl 0-2) / Page (lvl 3)
+ * [4:2]   AttrIndx
+ * [5]     NS
+ * [7:6]   AP[2:1]
+ * [9:8]   SH
+ * [10]    AF
+ * [11]    nG
+ * [47:12] Output address
+ * [52]    Contiguous
+ * [54]    XN
+ * [58:55] Software use
+ */
+pub const PTE_VALID: u64 = 1 << 0;
+pub const PTE_TABLE: u64 = 1 << 1;
+pub const PTE_AI_SHIFT: u64 = 2;
+pub const PTE_AI_MASK: u64 = 0x7 << PTE_AI_SHIFT;
+pub const PTE_NS: u64 = 1 << 5;
+pub const PTE_UP: u64 = 1 << 6; /* AP[1], RES1 at EL2 */
+pub const PTE_RO: u64 = 1 << 7; /* AP[2] */
+pub const PTE_SH_SHIFT: u64 = 8;
+pub const PTE_SH_MASK: u64 = 0x3 << PTE_SH_SHIFT;
+pub const PTE_AF: u64 = 1 << 10;
+pub const PTE_NG: u64 = 1 << 11;
+pub const PTE_ADDR_MASK: u64 = PADDR_MASK & !(PAGE_SIZE - 1);
+pub const PTE_CONTIG: u64 = 1 << 52;
+pub const PTE_XN: u64 = 1 << 54;
+
+/* Shareability */
+pub const LPAE_SH_NON: u64 = 0x0;
+pub const LPAE_SH_OUTER: u64 = 0x2;
+pub const LPAE_SH_INNER: u64 = 0x3;
+
 /* Page table flags */
 /*
  * Layout of the flags used for updating the hypervisor page tables
@@ -63,11 +112,27 @@ pub const _PAGE_BLOCK: u32 = 1 << _PAGE_BLOCK_BIT;
 pub const _PAGE_CONTIG_BIT: u8 = 8;
 pub const _PAGE_CONTIG: u32 = 1 << _PAGE_CONTIG_BIT;
 
+pub const fn PAGE_AI_MASK(x: u32) -> u32 {
+    x & 0x7
+}
+
+pub const fn PAGE_XN_MASK(x: u32) -> u32 {
+    (x >> _PAGE_XN_BIT) & 0x1
+}
+
+pub const fn PAGE_RO_MASK(x: u32) -> u32 {
+    (x >> _PAGE_RO_BIT) & 0x1
+}
+
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
 #[repr(transparent)]
 pub struct Flags(pub u32);
 
 impl Flags {
+    pub const fn bits(&self) -> u32 {
+        self.0
+    }
+
     pub fn contains(&self, mask: u32) -> bool {
         (self.0 & mask) == mask
     }

@@ -1,9 +1,9 @@
 #![no_std]
 #![no_main]
 
-use hemitheos::{console, log_error, log_info, platform};
-use core::panic::PanicInfo;
 use core::arch::asm;
+use core::panic::PanicInfo;
+use hemitheos::{console, log_error, log_info, platform};
 
 #[unsafe(no_mangle)]
 pub extern "C" fn main(boot_arg: usize) -> ! {

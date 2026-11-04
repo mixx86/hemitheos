@@ -3,8 +3,8 @@
 pub mod arch;
 pub mod boot;
 pub mod common;
-pub mod drivers;
 pub mod defs;
+pub mod drivers;
 
 pub use common::console;
 pub use common::log;

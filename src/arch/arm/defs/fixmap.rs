@@ -7,3 +7,9 @@
 // in ioremap.
 // TODO: ioremap for DTB UART
 pub const FIX_CONSOLE: u8 = 0;
+
+// Slots used by the PMAP to temporarily map page tables during early boot
+// (see map_table() in mmu/pt.rs).
+pub const FIX_PMAP_BEGIN: usize = 1;
+pub const NUM_FIX_PMAP: usize = 4;
+pub const FIX_PMAP_END: usize = FIX_PMAP_BEGIN + NUM_FIX_PMAP - 1;
