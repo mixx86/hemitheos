@@ -1,5 +1,6 @@
 use crate::arch::arm::defs::mmu::{DIRECTMAP_PHYS_START, DIRECTMAP_VIRT_START, FIXMAP_ADDR};
 use crate::arch::arm::defs::page::*;
+use crate::common::page_alloc::alloc_page;
 use crate::common::pmap::{pmap_map, pmap_unmap};
 use crate::defs::errno::Errno;
 use crate::defs::macros::*;
@@ -144,8 +145,50 @@ pub fn mfn_to_entry(mfn: Mfn, attr: u32) -> Pte {
     e
 }
 
+const EARLY_POOL_PAGES: usize = 8;
+
+#[repr(C, align(4096))]
+struct EarlyPool([[u8; PAGE_SIZE as usize]; EARLY_POOL_PAGES]);
+
+static mut EARLY_POOL: EarlyPool = EarlyPool([[0; PAGE_SIZE as usize]; EARLY_POOL_PAGES]);
+static EARLY_POOL_NEXT: AtomicUsize = AtomicUsize::new(0);
+
+fn alloc_table() -> Result<Mfn, Errno> {
+    if system_state() != SysState::SYS_STATE_early_boot {
+        return alloc_page();
+    }
+
+    let idx = EARLY_POOL_NEXT.fetch_add(1, Ordering::Relaxed);
+    if idx >= EARLY_POOL_PAGES {
+        return Err(Errno::HEMITHEOS_ENOMEM);
+    }
+
+    let va = unsafe { &raw mut EARLY_POOL.0[idx] } as VAddr;
+    Ok(get_afn(virt_to_maddr(va)?))
+}
+
+pub(crate) fn virt_to_maddr(va: VAddr) -> Result<MAddr, Errno> {
+    let par: u64;
+    unsafe {
+        asm!(
+            "at s1e2r, {va}",
+            "isb",
+            "mrs {par}, PAR_EL1",
+            va = in(reg) va,
+            par = out(reg) par,
+            options(nostack, preserves_flags),
+        );
+    }
+
+    if par & 1 != 0 {
+        return Err(Errno::HEMITHEOS_EINVAL);
+    }
+
+    Ok((par & PTE_ADDR_MASK) | (va & (PAGE_SIZE - 1)))
+}
+
 fn create_table(entry: *mut Pte) -> Result<(), Errno> {
-    let mfn = todo!("implement bump allocator");
+    let mfn = alloc_table()?;
 
     let p = map_table(mfn)?;
     unsafe { ptr::write_bytes(p as *mut u8, 0, PAGE_SIZE as usize) };

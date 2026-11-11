@@ -42,7 +42,11 @@ SECTIONS
         . += 0x1000;
         boot_third = .;
         . += 0x1000;
+        boot_first_id = .;
+        . += 0x1000;
         boot_second_id = .;
+        . += 0x1000;
+        boot_fixmap = .;
         . += 0x1000;
         __bss_end = .;
     }

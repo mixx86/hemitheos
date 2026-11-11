@@ -1,5 +1,6 @@
-use crate::defs::macros::BIT;
+use crate::defs::macros::{BIT};
 use core::ops::{BitOr, BitOrAssign};
+use crate::defs::mm::VAddr;
 
 /* Page table geometry */
 pub const PAGE_SHIFT: u64 = 12;

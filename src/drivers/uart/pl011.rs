@@ -1,3 +1,5 @@
+use crate::arch::arch_ioremap;
+
 const UARTCR: u64 = 0x30;
 const UARTIBRD: u64 = 0x24;
 const UARTFBRD: u64 = 0x28;
@@ -50,7 +52,6 @@ impl Pl011 {
 
     #[inline]
     fn write_reg(&self, offset: u64, val: u32) {
-        // SAFETY: same guarantees as read_reg.
         unsafe { core::ptr::write_volatile((self.base + offset) as *mut u32, val) }
     }
 }

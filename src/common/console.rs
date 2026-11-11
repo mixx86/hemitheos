@@ -1,4 +1,4 @@
-use crate::sync;
+use crate::{arch::arch_ioremap, sync};
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub enum ConsoleType {
@@ -114,12 +114,13 @@ fn find_console_in_fdt(fdt: &fdt::Fdt) -> Option<ConsoleInfo> {
             .property("current-speed")
             .and_then(|p| read_be_u32(p.value))
             .unwrap_or(0);
+        
+        let size = reg.size?;
+        let res = arch_ioremap(reg.starting_address as u64, size as u64).ok()?;
 
-        // Add MMMIO MAP
-
-        Some(ConsoleInfo {
+        return Some(ConsoleInfo {
             kind,
-            base: reg.starting_address as u64,
+            base: res,
             clock_hz,
             baud_rate,
         })

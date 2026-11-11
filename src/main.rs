@@ -4,10 +4,11 @@
 use core::arch::asm;
 use core::panic::PanicInfo;
 use hemitheos::{console, log_error, log_info, platform};
+use hemitheos::arch::early_setup;
 
 #[unsafe(no_mangle)]
 pub extern "C" fn main(boot_arg: usize) -> ! {
-    platform::init(boot_arg);
+    early_setup(boot_arg);
     console::init(platform::platform().console);
     log_info!("Hemitheos\n");
 
