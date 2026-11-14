@@ -1,6 +1,6 @@
 use crate::boot::BootSource;
 use crate::console::ConsoleInfo;
-use crate::defs::mm::MemRegions;
+use crate::defs::mm::*;
 use crate::sync;
 
 static PLATFORM: sync::Once<PlatformInfo> = sync::Once::new();
@@ -12,8 +12,9 @@ pub struct PlatformInfo {
     pub num_cpus: usize,
     pub ram_base: u64,
     pub ram_size: u64,
-    pub ram_banks: MemRegions,
-    pub reserved: MemRegions,
+    pub ram_banks: MemRegions<MAX_RAM_BANKS>,
+    pub reserved: MemRegions<MAX_RESERVED>,
+    pub no_map: MemRegions<MAX_RESERVED>,
 }
 
 fn discover_cpus(source: &BootSource) -> usize {
@@ -51,6 +52,7 @@ fn try_init_from_dtb(boot_arg: usize) -> Option<PlatformInfo> {
         ram_size: 0,
         ram_banks: MemRegions::new(),
         reserved: MemRegions::new(),
+        no_map: MemRegions::new(),
     };
 
     let memory = fdt.memory();
@@ -76,9 +78,16 @@ fn try_init_from_dtb(boot_arg: usize) -> Option<PlatformInfo> {
 
     if let Some(node) = fdt.find_node("/reserved-memory") {
         for child in node.children() {
+            let no_map = child.property("no-map").is_some();
+
             for region in child.reg().into_iter().flatten() {
                 let base = region.starting_address as u64;
-                platform.reserved.add(base, base + region.size.unwrap_or(0) as u64);
+                let end = base + region.size.unwrap_or(0) as u64;
+
+                platform.reserved.add(base, end);
+                if no_map {
+                    platform.no_map.add(base, end);
+                }
             }
         }
     }

@@ -94,23 +94,25 @@ impl Pte {
     }
 }
 
-pub const MAX_MEM_REGIONS: usize = 256;
-
 #[derive(Clone, Copy)]
 pub struct MemRegion {
   pub start: MAddr,
   pub end: MAddr,
 }
 
-pub struct MemRegions {
-  regions: [MemRegion; MAX_MEM_REGIONS],
+pub const MAX_RAM_BANKS: usize = 8;
+pub const MAX_RESERVED: usize = 32;
+pub const MAX_MEM_REGIONS: usize = 256;
+
+pub struct MemRegions<const N: usize> {
+  regions: [MemRegion; N],
   nr: usize,
 }
 
-impl MemRegions {
+impl<const N: usize> MemRegions<N> {
   pub const fn new() -> Self {
       Self {
-          regions: [MemRegion { start: 0, end: 0 }; MAX_MEM_REGIONS],
+          regions: [MemRegion { start: 0, end: 0 }; N],
           nr: 0,
       }
   }
@@ -120,7 +122,7 @@ impl MemRegions {
           return;
       }
 
-      assert!(self.nr < MAX_MEM_REGIONS, "too many memory regions");
+      assert!(self.nr < N, "too many memory regions");
       self.regions[self.nr] = MemRegion { start, end };
       self.nr += 1;
   }

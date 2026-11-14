@@ -9,7 +9,6 @@ use crate::defs::system::{SysState, system_state};
 use crate::log_warn;
 use crate::sync::SpinLock;
 use core::arch::asm;
-use core::cell::UnsafeCell;
 use core::ptr;
 use core::sync::atomic::{AtomicUsize, Ordering};
 

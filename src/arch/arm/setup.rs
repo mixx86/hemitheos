@@ -5,7 +5,7 @@ use crate::{
     common::page_alloc,
     defs::{
         macros::MB,
-        mm::{MAddr, MemRegion, MemRegions, VAddr},
+        mm::*,
         system::{SysState, set_system_state},
     },
     platform::{self, PlatformInfo},
@@ -29,21 +29,31 @@ pub fn early_setup(boot_arg: usize)
 
 fn setup_mm(info: &PlatformInfo, boot_info_paddr: MAddr)
 {
-    setup_directmap_mappings(info.ram_base, info.ram_size);
+    let mut mappable_regions: MemRegions<MAX_MEM_REGIONS> = MemRegions::new();
+    for bank in info.ram_banks.as_slice() {
+        add_free_regions(&mut mappable_regions, bank, &info.no_map.as_slice());
+    }
+    for r in mappable_regions.as_slice() {
+        let start = (r.start + PAGE_SIZE - 1) & !(PAGE_SIZE - 1);
+        let end = r.end & !(PAGE_SIZE - 1);
+        if start < end {
+            setup_directmap_mappings(start, end - start);
+        }
+    }
 
     let image_start = image_paddr(unsafe { &raw const _start } as VAddr);
     let image_end = image_paddr(unsafe { &raw const _end } as VAddr - 1) + 1;
 
-    let mut reserved = MemRegions::new();
+    let mut reserved: MemRegions<{ MAX_RESERVED + 2 }> = MemRegions::new();
     for r in info.reserved.as_slice() {
         reserved.add(r.start, r.end);
     }
     reserved.add(image_start, image_end);
     reserved.add(boot_info_paddr, boot_info_paddr + MB(2));
 
-    let mut free = MemRegions::new();
+    let mut free: MemRegions<MAX_MEM_REGIONS> = MemRegions::new();
     for bank in info.ram_banks.as_slice() {
-        add_free_regions(&mut free, bank, &reserved);
+        add_free_regions(&mut free, bank, &reserved.as_slice());
     }
 
     page_alloc::init(free.as_slice().iter());
@@ -57,13 +67,12 @@ fn image_paddr(va: VAddr) -> MAddr
     }
 }
 
-fn add_free_regions(free: &mut MemRegions, bank: &MemRegion, reserved: &MemRegions)
+fn add_free_regions<const N: usize>(free: &mut MemRegions<N>, bank: &MemRegion, reserved: &[MemRegion])
 {
     let mut cur = bank.start;
 
     while cur < bank.end {
         let next = reserved
-            .as_slice()
             .iter()
             .filter(|r| r.end > cur && r.start < bank.end)
             .min_by_key(|r| r.start);
@@ -71,7 +80,7 @@ fn add_free_regions(free: &mut MemRegions, bank: &MemRegion, reserved: &MemRegio
         match next {
             Some(r) => {
                 free.add(cur, r.start);
-                cur = cur.max(r.end);
+                cur = r.end;
             }
             None => {
                 free.add(cur, bank.end);
