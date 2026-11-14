@@ -1,5 +1,6 @@
 use crate::boot::BootSource;
 use crate::console::ConsoleInfo;
+use crate::defs::mm::MemRegions;
 use crate::sync;
 
 static PLATFORM: sync::Once<PlatformInfo> = sync::Once::new();
@@ -11,6 +12,8 @@ pub struct PlatformInfo {
     pub num_cpus: usize,
     pub ram_base: u64,
     pub ram_size: u64,
+    pub ram_banks: MemRegions,
+    pub reserved: MemRegions,
 }
 
 fn discover_cpus(source: &BootSource) -> usize {
@@ -46,6 +49,8 @@ fn try_init_from_dtb(boot_arg: usize) -> Option<PlatformInfo> {
         num_cpus: 0,
         ram_base: 0,
         ram_size: 0,
+        ram_banks: MemRegions::new(),
+        reserved: MemRegions::new(),
     };
 
     let memory = fdt.memory();
@@ -61,6 +66,21 @@ fn try_init_from_dtb(boot_arg: usize) -> Option<PlatformInfo> {
         }
 
         platform.ram_size += size;
+        platform.ram_banks.add(base, base + size);
+    }
+
+    for rsv in fdt.memory_reservations() {
+        let base = rsv.address() as u64;
+        platform.reserved.add(base, base + rsv.size() as u64);
+    }
+
+    if let Some(node) = fdt.find_node("/reserved-memory") {
+        for child in node.children() {
+            for region in child.reg().into_iter().flatten() {
+                let base = region.starting_address as u64;
+                platform.reserved.add(base, base + region.size.unwrap_or(0) as u64);
+            }
+        }
     }
 
     let source = BootSource::Fdt(&fdt);

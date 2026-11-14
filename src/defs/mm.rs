@@ -93,3 +93,39 @@ impl Pte {
         }
     }
 }
+
+pub const MAX_MEM_REGIONS: usize = 256;
+
+#[derive(Clone, Copy)]
+pub struct MemRegion {
+  pub start: MAddr,
+  pub end: MAddr,
+}
+
+pub struct MemRegions {
+  regions: [MemRegion; MAX_MEM_REGIONS],
+  nr: usize,
+}
+
+impl MemRegions {
+  pub const fn new() -> Self {
+      Self {
+          regions: [MemRegion { start: 0, end: 0 }; MAX_MEM_REGIONS],
+          nr: 0,
+      }
+  }
+
+  pub fn add(&mut self, start: MAddr, end: MAddr) {
+      if start >= end {
+          return;
+      }
+
+      assert!(self.nr < MAX_MEM_REGIONS, "too many memory regions");
+      self.regions[self.nr] = MemRegion { start, end };
+      self.nr += 1;
+  }
+
+  pub fn as_slice(&self) -> &[MemRegion] {
+      &self.regions[..self.nr]
+  }
+}

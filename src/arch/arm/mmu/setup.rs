@@ -16,7 +16,8 @@ pub extern "C" fn early_boot_info_map(paddr: MAddr)
     }
 }
 
-pub fn setup_directmap_mappings(base: MAddr, size: u64) {
+pub fn setup_directmap_mappings(base: MAddr, size: u64)
+{
     let virt = DIRECTMAP_VIRT_START + (base - DIRECTMAP_PHYS_START);
     let flags = Flags(_PAGE_PRESENT | MT_NORMAL | _PAGE_XN | _PAGE_BLOCK);
 
