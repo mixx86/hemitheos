@@ -49,22 +49,23 @@ FUNC_LOCAL(create_page_tables)
     orr   x4, x4, #3
     str   x4, [x0, x2, lsl #3]
 
-    // L2 → 2MB blocs
+    // L2 → 2MB blocks
     ldr   x0, =boot_second
     add   x0, x0, x21
     mov   x4, x19
-    orr   x4, x4, #(1 << 10)   // AF
-    orr   x4, x4, #(3 << 2)    // AttrIndx = MT_NORMAL_WB
-    orr   x4, x4, #1            // block descriptor
+    orr   x4, x4, #(1 << 10)
+    orr   x4, x4, #(3 << 2)
+    orr   x4, x4, #1
     str   x4, [x0, x3, lsl #3]
 
     ldr     x5, =HEMITHEOS_VIRT_START
-    ldr     x6, =_end
+    ldr     x6, =__hypervisor_end
     sub     x6, x6, x5
     ldr     x7, =((1 << 21) - 1)
-    add     x6, x6, x7           // suma 2MB-1 antes de dividir
-    lsr     x6, x6, #21          // redondea hacia arriba
+    add     x6, x6, x7
+    lsr     x6, x6, #21
     sub     x6, x6, #1
+    mov     x8, #2
 
 1:  cbz   x6, 2f
     add   x3, x3, #1
@@ -73,7 +74,11 @@ FUNC_LOCAL(create_page_tables)
     sub   x6, x6, #1
     b     1b
 
-2:  ldr     x0, =FIXMAP_VIRT_START
+2:  sub   x8, x8, #1
+    cbz   x8, 3f
+    ldr   x6, =_end
+
+3:  ldr     x0, =FIXMAP_VIRT_START
     get_table_slot x3, x0, 2
 
     // boot_fixmap -> L2
@@ -84,7 +89,7 @@ FUNC_LOCAL(create_page_tables)
     orr   x5, x5, #PT_PT
     str   x5, [x0, x3, lsl #3]
 
-3:  adr x0, enable_mmu
+4:  adr x0, enable_mmu
     get_table_slot  x1, x0, 0
     get_table_slot  x2, x0, 1
     get_table_slot  x3, x0, 2
@@ -116,9 +121,9 @@ FUNC_LOCAL(create_page_tables)
 
     adr   x0, enable_mmu
     ldr   x5, =boot_third
-    add   x5, x5, x21             // x5 = PA of L3 table (base for str)
+    add   x5, x5, x21
     mov   x6, #PT_MEM
-    orr   x0, x0, x6              // x0 = PA of page | attrs (entry value)
+    orr   x0, x0, x6
     str   x0, [x5, x4, lsl #3]
 END(create_page_tables)
 

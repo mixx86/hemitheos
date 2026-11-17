@@ -54,9 +54,14 @@ SECTIONS
     . = ALIGN(16);
     __hypervisor_end = .;
 
+    . = ALIGN(4096); // security page
+    . += 0x1000;
+
     . = ALIGN(16);
+    . = stack_bottom;
     . += 0x10000;
-    stack_top = .; 
+    stack_top = .;
+
     _end = .;
 }
 
